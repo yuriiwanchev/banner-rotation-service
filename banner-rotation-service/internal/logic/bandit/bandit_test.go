@@ -126,7 +126,7 @@ func TestSelectBanner_EmptySlot(t *testing.T) {
 	}
 }
 
-func TestSelectBanner_NoImpressions(t *testing.T) {
+func TestSelectBanner_NoViews(t *testing.T) {
 	mab := NewMultiArmedBandit()
 	slotID := e.SlotID(5)
 	bannerID1 := e.BannerID(1)
@@ -258,4 +258,72 @@ func TestConcurrentSelectBanner(t *testing.T) {
 	if totalViews != 1000 {
 		t.Errorf("Expected 1000 views, but got %d", totalViews)
 	}
+}
+
+// Additional Tests for Specific Scenarios
+
+func TestExhaustiveSelection(t *testing.T) {
+	mab := NewMultiArmedBandit()
+	slotID := e.SlotID(7)
+	groupID := e.UserGroupID(1)
+
+	// Add 10 banners
+	for i := 1; i <= 10; i++ {
+		mab.AddBanner(slotID, e.BannerID(i))
+	}
+
+	// Simulate 10000 views
+	for i := 0; i < 10000; i++ {
+		mab.SelectBanner(slotID, groupID)
+	}
+
+	// Check that each banner was shown at least once
+	for i := 1; i <= 10; i++ {
+		if mab.slots[slotID].GroupData[groupID][e.BannerID(i)].Views == 0 {
+			t.Errorf("Banner %d was not shown even once", i)
+		}
+	}
+}
+
+func TestPopularBannerSelection(t *testing.T) {
+	mab := NewMultiArmedBandit()
+	slotID := e.SlotID(8)
+	groupID := e.UserGroupID(1)
+
+	bannerID1 := e.BannerID(1)
+	bannerID2 := e.BannerID(2)
+	bannerID3 := e.BannerID(3)
+
+	mab.AddBanner(slotID, bannerID1)
+	mab.AddBanner(slotID, bannerID2)
+	mab.AddBanner(slotID, bannerID3)
+
+	// Simulate 10000 views and clicks for bannerID1
+	for i := 0; i < 10000; i++ {
+		selectedBanner := mab.SelectBanner(slotID, groupID)
+		if selectedBanner == bannerID1 {
+			mab.RecordClick(slotID, bannerID1, groupID)
+		}
+	}
+
+	views1 := mab.slots[slotID].GroupData[groupID][bannerID1].Views
+	views2 := mab.slots[slotID].GroupData[groupID][bannerID2].Views
+	views3 := mab.slots[slotID].GroupData[groupID][bannerID3].Views
+
+	threshold := 0.5
+
+	if !isSignificantlyBigger(views1, views2, threshold) ||
+		!isSignificantlyBigger(views1, views3, threshold) {
+		t.Errorf("Banner %d does not have significantly more views than others: %d, %d, %d", bannerID1, views1, views2, views3)
+	}
+}
+
+func isSignificantlyBigger(num1, num2 int, threshold float64) bool {
+	if num2 == 0 {
+		return num1 != 0
+	}
+
+	relativeDifference := float64((num1 - num2)) / float64(num2)
+
+	return relativeDifference >= threshold
 }
