@@ -1,30 +1,30 @@
 package models
 
 type AddBannerRequest struct {
-	SlotID   string `json:"slot_id"`
-	BannerID string `json:"banner_id"`
+	SlotID   int `json:"slot_id"`
+	BannerID int `json:"banner_id"`
 }
 
 type RemoveBannerRequest struct {
-	SlotID   string `json:"slot_id"`
-	BannerID string `json:"banner_id"`
+	SlotID   int `json:"slot_id"`
+	BannerID int `json:"banner_id"`
 }
 
 type RecordClickRequest struct {
-	SlotID    string `json:"slot_id"`
-	BannerID  string `json:"banner_id"`
-	UserGroup string `json:"user_group"`
+	SlotID      int `json:"slot_id"`
+	BannerID    int `json:"banner_id"`
+	UserGroupID int `json:"user_group_id"`
 }
 
 type RecordViewRequest struct {
-	SlotID    string `json:"slot_id"`
-	BannerID  string `json:"banner_id"`
-	UserGroup string `json:"user_group"`
+	SlotID      int `json:"slot_id"`
+	BannerID    int `json:"banner_id"`
+	UserGroupID int `json:"user_group_id"`
 }
 
 type SelectBannerRequest struct {
-	SlotID      string `json:"slot_id"`
-	UserGroupID string `json:"user_group_id"`
+	SlotID      int `json:"slot_id"`
+	UserGroupID int `json:"user_group_id"`
 }
 
 type SelectBannerResponse struct {
