@@ -28,7 +28,7 @@ jobs:
 
     - name: Run golangci-lint
       run: |
-        cd banner-rotation-service
+        cd banner-rotation-service | ls |
         golangci-lint run --timeout 10m
 
     - name: Run unit tests
