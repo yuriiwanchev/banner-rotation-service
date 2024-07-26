@@ -33,7 +33,7 @@ func AddBannerHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	banditService.AddBanner(request.SlotID, request.BannerID)
-	jsonResponse(w, http.StatusOK, nil)
+	// jsonResponse(w, http.StatusOK, nil)
 }
 
 func RemoveBannerHandler(w http.ResponseWriter, r *http.Request) {
