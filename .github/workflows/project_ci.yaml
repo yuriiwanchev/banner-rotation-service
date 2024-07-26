@@ -27,9 +27,7 @@ jobs:
         sudo mv ./bin/golangci-lint /usr/local/bin/
 
     - name: Run golangci-lint
-      run: |
-        cd banner-rotation-service | ls |
-        golangci-lint run --timeout 10m
+      run: golangci-lint run
 
     - name: Run unit tests
       run: go test -race -count 100 ./...
