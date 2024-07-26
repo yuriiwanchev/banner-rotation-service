@@ -1,18 +1,22 @@
 package entities
 
+type SlotID int
+type BannerID int
+type UserGroupID int
+
 type Slot struct {
-	ID          int    `json:"id"`
+	ID          SlotID `json:"id"`
 	Description string `json:"description"`
 }
 
 type Banner struct {
-	ID          int    `json:"id"`
-	Description string `json:"description"`
+	ID          BannerID `json:"id"`
+	Description string   `json:"description"`
 }
 
 type UserGroup struct {
-	ID          int    `json:"id"`
-	Description string `json:"description"`
+	ID          UserGroupID `json:"id"`
+	Description string      `json:"description"`
 }
 
 type Event struct {
