@@ -1,71 +1,137 @@
 package bandit
 
 import (
-	"math/rand"
+	"math"
+	"sync"
 
-	"github.com/yuriiwanchev/banner-rotation-service/internal/entities"
+	e "github.com/yuriiwanchev/banner-rotation-service/internal/entities"
 )
 
-type BannerStats struct {
-	Clicks int
+type GroupStats struct {
 	Views  int
+	Clicks int
+}
+
+type Slot struct {
+	Banners   map[e.BannerID]e.Banner
+	GroupData map[e.UserGroupID]map[e.BannerID]*GroupStats
 }
 
 type MultiArmedBandit struct {
-	Epsilon     float64
-	BannerStats map[entities.SlotID]map[entities.BannerID]*BannerStats
+	slots map[e.SlotID]*Slot
+	mu    sync.Mutex
 }
 
-func NewMultiArmedBandit(epsilon float64) *MultiArmedBandit {
+func NewMultiArmedBandit() *MultiArmedBandit {
 	return &MultiArmedBandit{
-		Epsilon:     epsilon,
-		BannerStats: make(map[entities.SlotID]map[entities.BannerID]*BannerStats),
+		slots: make(map[e.SlotID]*Slot),
 	}
 }
 
-func (mab *MultiArmedBandit) AddBanner(slotID entities.SlotID, bannerID entities.BannerID) {
-	if _, exists := mab.BannerStats[slotID]; !exists {
-		mab.BannerStats[slotID] = make(map[entities.BannerID]*BannerStats)
+func (mab *MultiArmedBandit) AddBanner(slotID e.SlotID, bannerID e.BannerID) {
+	mab.mu.Lock()
+	defer mab.mu.Unlock()
+
+	slot, exists := mab.slots[slotID]
+	if !exists {
+		slot = &Slot{
+			Banners:   make(map[e.BannerID]e.Banner),
+			GroupData: make(map[e.UserGroupID]map[e.BannerID]*GroupStats),
+		}
+		mab.slots[slotID] = slot
 	}
-	mab.BannerStats[slotID][bannerID] = &BannerStats{Clicks: 0, Views: 0}
+
+	slot.Banners[bannerID] = e.Banner{ID: bannerID}
 }
 
-func (mab *MultiArmedBandit) RemoveBanner(slotID entities.SlotID, bannerID entities.BannerID) {
-	if _, exists := mab.BannerStats[slotID]; exists {
-		delete(mab.BannerStats[slotID], bannerID)
-	}
-}
+func (mab *MultiArmedBandit) RemoveBanner(slotID e.SlotID, bannerID e.BannerID) {
+	mab.mu.Lock()
+	defer mab.mu.Unlock()
 
-func (mab *MultiArmedBandit) RecordClick(slotID entities.SlotID, bannerID entities.BannerID) {
-	if stats, exists := mab.BannerStats[slotID][bannerID]; exists {
-		stats.Clicks++
-	}
-}
-
-func (mab *MultiArmedBandit) RecordView(slotID entities.SlotID, bannerID entities.BannerID) {
-	if stats, exists := mab.BannerStats[slotID][bannerID]; exists {
-		stats.Views++
-	}
-}
-
-func (mab *MultiArmedBandit) SelectBanner(slotID entities.SlotID) entities.BannerID {
-	banners := mab.BannerStats[slotID]
-	if rand.Float64() < mab.Epsilon {
-		// Выбираем случайный баннер
-		for bannerID := range banners {
-			return bannerID
+	slot, exists := mab.slots[slotID]
+	if exists {
+		delete(slot.Banners, bannerID)
+		for _, groupStats := range slot.GroupData {
+			delete(groupStats, bannerID)
 		}
 	}
+}
 
-	// Выбираем баннер с максимальным CTR (click-through rate)
-	var selectedBanner entities.BannerID
-	maxCTR := -1.0
-	for bannerID, stats := range banners {
-		ctr := float64(stats.Clicks) / float64(stats.Views+1)
-		if ctr > maxCTR {
-			maxCTR = ctr
+func (mab *MultiArmedBandit) RecordClick(slotID e.SlotID, bannerID e.BannerID, groupID e.UserGroupID) {
+	mab.mu.Lock()
+	defer mab.mu.Unlock()
+
+	slot, exists := mab.slots[slotID]
+	if !exists {
+		return
+	}
+
+	groupStats, exists := slot.GroupData[groupID]
+	if !exists {
+		groupStats = make(map[e.BannerID]*GroupStats)
+		slot.GroupData[groupID] = groupStats
+	}
+
+	stats, exists := groupStats[bannerID]
+	if !exists {
+		stats = &GroupStats{}
+		groupStats[bannerID] = stats
+	}
+
+	stats.Clicks++
+}
+
+func (mab *MultiArmedBandit) SelectBanner(slotID e.SlotID, groupID e.UserGroupID) e.BannerID {
+	mab.mu.Lock()
+	defer mab.mu.Unlock()
+
+	slot, exists := mab.slots[slotID]
+	if !exists {
+		return 0
+	}
+
+	groupStats, exists := slot.GroupData[groupID]
+	if !exists {
+		groupStats = make(map[e.BannerID]*GroupStats)
+		slot.GroupData[groupID] = groupStats
+	}
+
+	var selectedBanner e.BannerID = 0
+	maxUCB := -1.0
+
+	for bannerID := range slot.Banners {
+		stats, exists := groupStats[bannerID]
+		if !exists {
+			stats = &GroupStats{}
+			groupStats[bannerID] = stats
+		}
+
+		ucb := calculateUCB(stats.Clicks, stats.Views, totalViews(groupStats))
+
+		if ucb > maxUCB {
+			maxUCB = ucb
 			selectedBanner = bannerID
 		}
 	}
+
+	if selectedBanner != 0 {
+		groupStats[selectedBanner].Views++
+	}
+
 	return selectedBanner
+}
+
+func calculateUCB(clicks, views, totalViews int) float64 {
+	if views == 0 {
+		return 1e6
+	}
+	return float64(clicks)/float64(views) + 2.0*math.Sqrt(math.Log(float64(totalViews))/float64(views))
+}
+
+func totalViews(groupStats map[e.BannerID]*GroupStats) int {
+	total := 0
+	for _, stats := range groupStats {
+		total += stats.Views
+	}
+	return total
 }
