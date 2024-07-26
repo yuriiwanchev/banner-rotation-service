@@ -1,8 +1,10 @@
 package entities
 
-type SlotID int
-type BannerID int
-type UserGroupID int
+type (
+	SlotID      int
+	BannerID    int
+	UserGroupID int
+)
 
 type Slot struct {
 	ID          SlotID `json:"id"`
@@ -21,9 +23,9 @@ type UserGroup struct {
 
 type Event struct {
 	Type        EventType `json:"type"`
-	SlotID      string    `json:"slot_id"`
-	BannerID    string    `json:"banner_id"`
-	UserGroupID string    `json:"user_group_id"`
+	SlotID      string    `json:"slotId"`
+	BannerID    string    `json:"bannerId"`
+	UserGroupID string    `json:"userGroupId"`
 }
 
 type EventType string

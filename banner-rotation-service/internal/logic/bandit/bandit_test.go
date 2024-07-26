@@ -29,7 +29,10 @@ func TestRemoveBanner(t *testing.T) {
 	bannerID := e.BannerID(1)
 
 	mab.AddBanner(slotID, bannerID)
-	mab.RemoveBanner(slotID, bannerID)
+	err := mab.RemoveBanner(slotID, bannerID)
+	if err != nil {
+		t.Errorf("Error removing banner %d from slot %d: %v", bannerID, slotID, err)
+	}
 
 	if _, exists := mab.slots[slotID].Banners[bannerID]; exists {
 		t.Errorf("Banner %d was not removed from slot %d", bannerID, slotID)
@@ -43,7 +46,10 @@ func TestRecordClick(t *testing.T) {
 	groupID := e.UserGroupID(1)
 
 	mab.AddBanner(slotID, bannerID)
-	mab.RecordClick(slotID, bannerID, groupID)
+	err := mab.RecordClick(slotID, bannerID, groupID)
+	if err != nil {
+		t.Errorf("Error recording click for banner %d in slot %d for group %d: %v", bannerID, slotID, groupID, err)
+	}
 
 	if mab.slots[slotID].GroupData[groupID][bannerID].Clicks != 1 {
 		t.Errorf("Click was not recorded for banner %d in slot %d for group %d", bannerID, slotID, groupID)
@@ -65,7 +71,11 @@ func TestSelectBanner(t *testing.T) {
 		t.Errorf("Selected banner %d is not one of the added banners", selectedBanner)
 	}
 
-	mab.RecordClick(slotID, selectedBanner, groupID)
+	err := mab.RecordClick(slotID, selectedBanner, groupID)
+	if err != nil {
+		t.Errorf("Error recording click for banner %d in slot %d for group %d: %v", selectedBanner, slotID, groupID, err)
+	}
+
 	selectedBanner = mab.SelectBanner(slotID, groupID)
 	if selectedBanner != bannerID1 && selectedBanner != bannerID2 {
 		t.Errorf("Selected banner %d is not one of the added banners", selectedBanner)
@@ -101,8 +111,10 @@ func TestRemoveBanner_NonExistentSlot(t *testing.T) {
 	slotID := e.SlotID(2)
 	bannerID := e.BannerID(3)
 
-	mab.RemoveBanner(slotID, bannerID)
-	// Slot doesn't exist, no action should be taken
+	err := mab.RemoveBanner(slotID, bannerID)
+	if err == nil {
+		t.Errorf("Expected error removing banner %d from non-existent slot %d", bannerID, slotID)
+	}
 }
 
 func TestRecordClick_NonExistentBannerOrSlot(t *testing.T) {
@@ -111,8 +123,12 @@ func TestRecordClick_NonExistentBannerOrSlot(t *testing.T) {
 	bannerID := e.BannerID(4)
 	groupID := e.UserGroupID(2)
 
-	mab.RecordClick(slotID, bannerID, groupID)
-	// No banner or slot exists, no action should be taken
+	err := mab.RecordClick(slotID, bannerID, groupID)
+
+	if err == nil {
+		t.Errorf("Expected error recording click for non-existent banner %d in slot %d for group %d",
+			bannerID, slotID, groupID)
+	}
 }
 
 func TestSelectBanner_EmptySlot(t *testing.T) {
@@ -153,8 +169,14 @@ func TestSelectBanner_UCBAlgorithm(t *testing.T) {
 	mab.AddBanner(slotID, bannerID2)
 
 	// Simulate clicks and views
-	mab.RecordClick(slotID, bannerID1, groupID)
-	mab.RecordClick(slotID, bannerID2, groupID)
+	err := mab.RecordClick(slotID, bannerID1, groupID)
+	if err != nil {
+		t.Errorf("Error recording click for banner %d in slot %d for group %d: %v", bannerID1, slotID, groupID, err)
+	}
+	err = mab.RecordClick(slotID, bannerID2, groupID)
+	if err != nil {
+		t.Errorf("Error recording click for banner %d in slot %d for group %d: %v", bannerID2, slotID, groupID, err)
+	}
 	mab.slots[slotID].GroupData[groupID][bannerID1].Views = 10
 	mab.slots[slotID].GroupData[groupID][bannerID2].Views = 20
 
@@ -201,7 +223,10 @@ func TestConcurrentRemoveBanner(t *testing.T) {
 		go func(i int) {
 			defer wg.Done()
 			bannerID := e.BannerID(i)
-			mab.RemoveBanner(slotID, bannerID)
+			err := mab.RemoveBanner(slotID, bannerID)
+			if err != nil {
+				t.Errorf("Error removing banner %d: %v", bannerID, err)
+			}
 		}(i)
 	}
 	wg.Wait()
@@ -224,7 +249,10 @@ func TestConcurrentRecordClick(t *testing.T) {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			mab.RecordClick(slotID, bannerID, groupID)
+			err := mab.RecordClick(slotID, bannerID, groupID)
+			if err != nil {
+				t.Errorf("Error recording click for banner %d in slot %d for group %d: %v", bannerID, slotID, groupID, err)
+			}
 		}()
 	}
 	wg.Wait()
@@ -254,7 +282,10 @@ func TestConcurrentSelectBanner(t *testing.T) {
 	}
 	wg.Wait()
 
-	totalViews := mab.slots[slotID].GroupData[groupID][bannerID1].Views + mab.slots[slotID].GroupData[groupID][bannerID2].Views
+	bannerID1Views := mab.slots[slotID].GroupData[groupID][bannerID1].Views
+	bannerID2Views := mab.slots[slotID].GroupData[groupID][bannerID2].Views
+
+	totalViews := bannerID1Views + bannerID2Views
 	if totalViews != 1000 {
 		t.Errorf("Expected 1000 views, but got %d", totalViews)
 	}
@@ -302,7 +333,10 @@ func TestPopularBannerSelection(t *testing.T) {
 	for i := 0; i < 10000; i++ {
 		selectedBanner := mab.SelectBanner(slotID, groupID)
 		if selectedBanner == bannerID1 {
-			mab.RecordClick(slotID, bannerID1, groupID)
+			err := mab.RecordClick(slotID, bannerID1, groupID)
+			if err != nil {
+				t.Errorf("Error recording click for banner %d in slot %d for group %d: %v", bannerID1, slotID, groupID, err)
+			}
 		}
 	}
 
@@ -314,7 +348,8 @@ func TestPopularBannerSelection(t *testing.T) {
 
 	if !isSignificantlyBigger(views1, views2, threshold) ||
 		!isSignificantlyBigger(views1, views3, threshold) {
-		t.Errorf("Banner %d does not have significantly more views than others: %d, %d, %d", bannerID1, views1, views2, views3)
+		t.Errorf("Banner %d does not have significantly more views than others: %d, %d, %d",
+			bannerID1, views1, views2, views3)
 	}
 }
 

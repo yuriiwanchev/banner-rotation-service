@@ -5,26 +5,26 @@ import (
 )
 
 type AddBannerRequest struct {
-	SlotID   e.SlotID   `json:"slot_id"`
-	BannerID e.BannerID `json:"banner_id"`
+	SlotID   e.SlotID   `json:"slotId"`
+	BannerID e.BannerID `json:"bannerId"`
 }
 
 type RemoveBannerRequest struct {
-	SlotID   e.SlotID   `json:"slot_id"`
-	BannerID e.BannerID `json:"banner_id"`
+	SlotID   e.SlotID   `json:"slotId"`
+	BannerID e.BannerID `json:"bannerId"`
 }
 
 type RecordClickRequest struct {
-	SlotID      e.SlotID      `json:"slot_id"`
-	BannerID    e.BannerID    `json:"banner_id"`
-	UserGroupID e.UserGroupID `json:"user_group_id"`
+	SlotID      e.SlotID      `json:"slotId"`
+	BannerID    e.BannerID    `json:"bannerId"`
+	UserGroupID e.UserGroupID `json:"userGroupId"`
 }
 
 type SelectBannerRequest struct {
-	SlotID      e.SlotID      `json:"slot_id"`
-	UserGroupID e.UserGroupID `json:"user_group_id"`
+	SlotID      e.SlotID      `json:"slotId"`
+	UserGroupID e.UserGroupID `json:"userGroupId"`
 }
 
 type SelectBannerResponse struct {
-	BannerID e.BannerID `json:"banner_id"`
+	BannerID e.BannerID `json:"bannerId"`
 }

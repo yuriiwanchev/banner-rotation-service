@@ -86,7 +86,8 @@ func SelectBannerHandler(w http.ResponseWriter, r *http.Request) {
 
 	response.BannerID = banditService.SelectBanner(request.SlotID, request.UserGroupID)
 	if response.BannerID == 0 {
-		jsonResponse(w, http.StatusNotFound, map[string]string{"error": "No banner available for the given slot and user group"})
+		jsonResponse(w, http.StatusNotFound,
+			map[string]string{"error": "No banner available for the given slot and user group"})
 		return
 	}
 

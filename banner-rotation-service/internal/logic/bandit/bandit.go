@@ -1,6 +1,7 @@
 package bandit
 
 import (
+	"fmt"
 	"math"
 	"sync"
 
@@ -44,26 +45,30 @@ func (mab *MultiArmedBandit) AddBanner(slotID e.SlotID, bannerID e.BannerID) {
 	slot.Banners[bannerID] = e.Banner{ID: bannerID}
 }
 
-func (mab *MultiArmedBandit) RemoveBanner(slotID e.SlotID, bannerID e.BannerID) {
-	mab.mu.Lock()
-	defer mab.mu.Unlock()
-
-	slot, exists := mab.slots[slotID]
-	if exists {
-		delete(slot.Banners, bannerID)
-		for _, groupStats := range slot.GroupData {
-			delete(groupStats, bannerID)
-		}
-	}
-}
-
-func (mab *MultiArmedBandit) RecordClick(slotID e.SlotID, bannerID e.BannerID, groupID e.UserGroupID) {
+func (mab *MultiArmedBandit) RemoveBanner(slotID e.SlotID, bannerID e.BannerID) error {
 	mab.mu.Lock()
 	defer mab.mu.Unlock()
 
 	slot, exists := mab.slots[slotID]
 	if !exists {
-		return
+		return fmt.Errorf("slot %d does not exist", slotID)
+	}
+
+	delete(slot.Banners, bannerID)
+	for _, groupStats := range slot.GroupData {
+		delete(groupStats, bannerID)
+	}
+
+	return nil
+}
+
+func (mab *MultiArmedBandit) RecordClick(slotID e.SlotID, bannerID e.BannerID, groupID e.UserGroupID) error {
+	mab.mu.Lock()
+	defer mab.mu.Unlock()
+
+	slot, exists := mab.slots[slotID]
+	if !exists {
+		return fmt.Errorf("slot %d does not exist", slotID)
 	}
 
 	groupStats, exists := slot.GroupData[groupID]
@@ -79,6 +84,8 @@ func (mab *MultiArmedBandit) RecordClick(slotID e.SlotID, bannerID e.BannerID, g
 	}
 
 	stats.Clicks++
+
+	return nil
 }
 
 func (mab *MultiArmedBandit) SelectBanner(slotID e.SlotID, groupID e.UserGroupID) e.BannerID {
@@ -96,7 +103,7 @@ func (mab *MultiArmedBandit) SelectBanner(slotID e.SlotID, groupID e.UserGroupID
 		slot.GroupData[groupID] = groupStats
 	}
 
-	var selectedBanner e.BannerID = 0
+	var selectedBanner e.BannerID
 	maxUCB := -1.0
 
 	for bannerID := range slot.Banners {

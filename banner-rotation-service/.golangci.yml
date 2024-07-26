@@ -5,6 +5,16 @@ linters-settings:
   funlen:
     lines: 150
     statements: 80
+  depguard:
+    rules:
+      main:
+        allow:
+          - $gostd
+          - github.com/yuriiwanchev/banner-rotation-service/internal/entities
+          - github.com/yuriiwanchev/banner-rotation-service/internal/models
+          - github.com/yuriiwanchev/banner-rotation-service/internal/logic/bandit
+          - github.com/confluentinc/confluent-kafka-go/kafka
+          - github.com/yuriiwanchev/banner-rotation-service/internal/api
 
 linters:
   disable-all: true
