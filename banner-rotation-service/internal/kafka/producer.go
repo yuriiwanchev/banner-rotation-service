@@ -8,12 +8,12 @@ import (
 	"github.com/segmentio/kafka-go"
 )
 
-type KafkaProducer struct {
+type Producer struct {
 	Writer *kafka.Writer
 }
 
-func NewKafkaProducer(brokers []string, topic string) *KafkaProducer {
-	return &KafkaProducer{
+func NewKafkaProducer(brokers []string, topic string) *Producer {
+	return &Producer{
 		Writer: &kafka.Writer{
 			Addr:     kafka.TCP(brokers...),
 			Topic:    topic,
@@ -22,7 +22,7 @@ func NewKafkaProducer(brokers []string, topic string) *KafkaProducer {
 	}
 }
 
-func (p *KafkaProducer) PublishMessage(key, value []byte) error {
+func (p *Producer) PublishMessage(key, value []byte) error {
 	msg := kafka.Message{
 		Key:   key,
 		Value: value,
@@ -36,6 +36,6 @@ func (p *KafkaProducer) PublishMessage(key, value []byte) error {
 	return nil
 }
 
-func (p *KafkaProducer) Close() error {
+func (p *Producer) Close() error {
 	return p.Writer.Close()
 }

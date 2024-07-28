@@ -13,7 +13,7 @@ linters-settings:
           - github.com/yuriiwanchev/banner-rotation-service/internal/entities
           - github.com/yuriiwanchev/banner-rotation-service/internal/models
           - github.com/yuriiwanchev/banner-rotation-service/internal/logic/bandit
-          - github.com/confluentinc/confluent-kafka-go/kafka
+          - github.com/segmentio/kafka-go
           - github.com/yuriiwanchev/banner-rotation-service/internal/api
 
 linters:

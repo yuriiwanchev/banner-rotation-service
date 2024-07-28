@@ -13,7 +13,7 @@ import (
 
 var (
 	banditService = bandit.NewMultiArmedBandit()
-	kafkaProducer *kafka.KafkaProducer
+	kafkaProducer *kafka.Producer
 )
 
 func InitKafkaProducer(brokers []string, topic string) {
