@@ -1,5 +1,5 @@
 # syntax=docker/dockerfile:1
-FROM golang:1.18-alpine AS builder
+FROM golang:1.22.5-alpine AS builder
 WORKDIR /app
 COPY . .
 RUN go build -o banner-rotation-service ./cmd/main.go

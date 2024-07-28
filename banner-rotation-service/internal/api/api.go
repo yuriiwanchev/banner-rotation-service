@@ -3,12 +3,22 @@ package api
 import (
 	"encoding/json"
 	"net/http"
+	"strconv"
 
+	e "github.com/yuriiwanchev/banner-rotation-service/internal/entities"
+	"github.com/yuriiwanchev/banner-rotation-service/internal/kafka"
 	"github.com/yuriiwanchev/banner-rotation-service/internal/logic/bandit"
 	m "github.com/yuriiwanchev/banner-rotation-service/internal/models"
 )
 
-var banditService = bandit.NewMultiArmedBandit()
+var (
+	banditService = bandit.NewMultiArmedBandit()
+	kafkaProducer *kafka.KafkaProducer
+)
+
+func InitKafkaProducer(brokers []string, topic string) {
+	kafkaProducer = kafka.NewKafkaProducer(brokers, topic)
+}
 
 func jsonResponse(w http.ResponseWriter, status int, data interface{}) {
 	w.WriteHeader(status)
@@ -33,7 +43,7 @@ func AddBannerHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	banditService.AddBanner(request.SlotID, request.BannerID)
-	// jsonResponse(w, http.StatusOK, nil)
+	jsonResponse(w, http.StatusOK, nil)
 }
 
 func RemoveBannerHandler(w http.ResponseWriter, r *http.Request) {
@@ -49,7 +59,13 @@ func RemoveBannerHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	banditService.RemoveBanner(request.SlotID, request.BannerID)
+	err := banditService.RemoveBanner(request.SlotID, request.BannerID)
+
+	if err != nil {
+		jsonResponse(w, http.StatusBadRequest, map[string]string{"error": err.Error()})
+		return
+	}
+
 	jsonResponse(w, http.StatusOK, nil)
 }
 
@@ -66,7 +82,28 @@ func RecordClickHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	banditService.RecordClick(request.SlotID, request.BannerID, request.UserGroupID)
+	err := banditService.RecordClick(request.SlotID, request.BannerID, request.UserGroupID)
+
+	if err != nil {
+		jsonResponse(w, http.StatusBadRequest, map[string]string{"error": err.Error()})
+		return
+	}
+
+	event := e.Event{
+		Type:        e.Click,
+		SlotID:      request.SlotID,
+		BannerID:    request.BannerID,
+		UserGroupID: request.UserGroupID,
+	}
+
+	eventBytes, _ := json.Marshal(event)
+	SlotIDBytes, err := idToBytes(int(request.SlotID))
+	if err != nil {
+		jsonResponse(w, http.StatusBadRequest, map[string]string{"error": "Try to convert SlotID to byte array"})
+		return
+	}
+	kafkaProducer.PublishMessage(SlotIDBytes, eventBytes)
+
 	jsonResponse(w, http.StatusOK, nil)
 }
 
@@ -91,6 +128,32 @@ func SelectBannerHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// jsonResponse(w, http.StatusOK, map[string]string{"banner_id": bannerID})
+	event := e.Event{
+		Type:        e.View,
+		SlotID:      request.SlotID,
+		BannerID:    response.BannerID,
+		UserGroupID: request.UserGroupID,
+	}
+
+	eventBytes, _ := json.Marshal(event)
+	SlotIDBytes, err := idToBytes(int(request.SlotID))
+	if err != nil {
+		jsonResponse(w, http.StatusBadRequest, map[string]string{"error": "Try to convert SlotID to byte array"})
+		return
+	}
+	kafkaProducer.PublishMessage(SlotIDBytes, eventBytes)
+
 	jsonResponse(w, http.StatusOK, response)
+}
+
+func idToBytes(id int) ([]byte, error) {
+	// buf := new(bytes.Buffer)
+	// err := binary.Write(buf, binary.LittleEndian, id)
+	// if err != nil {
+	// 	return nil, err
+	// }
+	// idBytes := buf.Bytes()
+	slotIDString := strconv.Itoa(id) // replace `Itoa` with appropriate function for the numeric type
+	idBytes := []byte(slotIDString)
+	return idBytes, nil
 }

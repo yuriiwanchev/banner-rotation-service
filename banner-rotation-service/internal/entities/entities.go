@@ -22,10 +22,10 @@ type UserGroup struct {
 }
 
 type Event struct {
-	Type        EventType `json:"type"`
-	SlotID      string    `json:"slotId"`
-	BannerID    string    `json:"bannerId"`
-	UserGroupID string    `json:"userGroupId"`
+	Type        EventType   `json:"type"`
+	SlotID      SlotID      `json:"slotId"`
+	BannerID    BannerID    `json:"bannerId"`
+	UserGroupID UserGroupID `json:"userGroupId"`
 }
 
 type EventType string
