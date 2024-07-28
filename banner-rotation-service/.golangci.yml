@@ -15,13 +15,13 @@ linters-settings:
           - github.com/yuriiwanchev/banner-rotation-service/internal/logic/bandit
           - github.com/segmentio/kafka-go
           - github.com/yuriiwanchev/banner-rotation-service/internal/api
+          - github.com/yuriiwanchev/banner-rotation-service/internal/kafka
 
 linters:
   disable-all: true
   enable:
     - asciicheck
     - bodyclose
-    - deadcode
     - depguard
     - dogsled
     - dupl
@@ -45,7 +45,6 @@ linters:
     - gosec
     - gosimple
     - govet
-    - ifshort
     - importas
     - ineffassign
     - lll
@@ -61,7 +60,6 @@ linters:
     - rowserrcheck
     - sqlclosecheck
     - staticcheck
-    - structcheck
     - stylecheck
     - tagliatelle
     - thelper
@@ -70,6 +68,5 @@ linters:
     - unconvert
     - unparam
     - unused
-    - varcheck
     - wastedassign
     - whitespace

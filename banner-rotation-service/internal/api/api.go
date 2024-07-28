@@ -60,7 +60,6 @@ func RemoveBannerHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	err := banditService.RemoveBanner(request.SlotID, request.BannerID)
-
 	if err != nil {
 		jsonResponse(w, http.StatusBadRequest, map[string]string{"error": err.Error()})
 		return
@@ -83,7 +82,6 @@ func RecordClickHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	err := banditService.RecordClick(request.SlotID, request.BannerID, request.UserGroupID)
-
 	if err != nil {
 		jsonResponse(w, http.StatusBadRequest, map[string]string{"error": err.Error()})
 		return
@@ -97,12 +95,8 @@ func RecordClickHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	eventBytes, _ := json.Marshal(event)
-	SlotIDBytes, err := idToBytes(int(request.SlotID))
-	if err != nil {
-		jsonResponse(w, http.StatusBadRequest, map[string]string{"error": "Try to convert SlotID to byte array"})
-		return
-	}
-	kafkaProducer.PublishMessage(SlotIDBytes, eventBytes)
+	slotIDBytes := idToBytes(int(request.SlotID))
+	kafkaProducer.PublishMessage(slotIDBytes, eventBytes)
 
 	jsonResponse(w, http.StatusOK, nil)
 }
@@ -136,24 +130,14 @@ func SelectBannerHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	eventBytes, _ := json.Marshal(event)
-	SlotIDBytes, err := idToBytes(int(request.SlotID))
-	if err != nil {
-		jsonResponse(w, http.StatusBadRequest, map[string]string{"error": "Try to convert SlotID to byte array"})
-		return
-	}
-	kafkaProducer.PublishMessage(SlotIDBytes, eventBytes)
+	slotIDBytes := idToBytes(int(request.SlotID))
+	kafkaProducer.PublishMessage(slotIDBytes, eventBytes)
 
 	jsonResponse(w, http.StatusOK, response)
 }
 
-func idToBytes(id int) ([]byte, error) {
-	// buf := new(bytes.Buffer)
-	// err := binary.Write(buf, binary.LittleEndian, id)
-	// if err != nil {
-	// 	return nil, err
-	// }
-	// idBytes := buf.Bytes()
-	slotIDString := strconv.Itoa(id) // replace `Itoa` with appropriate function for the numeric type
+func idToBytes(id int) []byte {
+	slotIDString := strconv.Itoa(id)
 	idBytes := []byte(slotIDString)
-	return idBytes, nil
+	return idBytes
 }
