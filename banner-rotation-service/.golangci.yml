@@ -16,6 +16,10 @@ linters-settings:
           - github.com/segmentio/kafka-go
           - github.com/yuriiwanchev/banner-rotation-service/internal/api
           - github.com/yuriiwanchev/banner-rotation-service/internal/kafka
+          - github.com/stretchr/testify/assert
+          - github.com/stretchr/testify/require
+          - github.com/orlangure/gnomock
+          - github.com/orlangure/gnomock/preset/kafka
 
 linters:
   disable-all: true

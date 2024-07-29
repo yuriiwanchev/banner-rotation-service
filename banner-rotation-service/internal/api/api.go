@@ -96,7 +96,9 @@ func RecordClickHandler(w http.ResponseWriter, r *http.Request) {
 
 	eventBytes, _ := json.Marshal(event)
 	slotIDBytes := idToBytes(int(request.SlotID))
-	kafkaProducer.PublishMessage(slotIDBytes, eventBytes)
+	if kafkaProducer != nil {
+		kafkaProducer.PublishMessage(slotIDBytes, eventBytes)
+	}
 
 	jsonResponse(w, http.StatusOK, nil)
 }
@@ -131,7 +133,9 @@ func SelectBannerHandler(w http.ResponseWriter, r *http.Request) {
 
 	eventBytes, _ := json.Marshal(event)
 	slotIDBytes := idToBytes(int(request.SlotID))
-	kafkaProducer.PublishMessage(slotIDBytes, eventBytes)
+	if kafkaProducer != nil {
+		kafkaProducer.PublishMessage(slotIDBytes, eventBytes)
+	}
 
 	jsonResponse(w, http.StatusOK, response)
 }

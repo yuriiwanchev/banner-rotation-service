@@ -5,8 +5,11 @@ LDFLAGS := -X main.release="develop" -X main.buildDate=$(shell date -u +%Y-%m-%d
 build:
 	go build -v -o $(BIN) -ldflags "$(LDFLAGS)" ./cmd/main.go
 
-run: build
-	$(BIN) -config ./configs/config.toml
+run: 
+	docker compose up
 
 test:
 	go test -race -count 100 ./...
+
+integration-test:
+	go test -count 1 -tags=integration ./test/integration/...
