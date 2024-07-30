@@ -58,3 +58,9 @@ jobs:
     - name: Build binary
       run: go build -o banner-rotation-service ./cmd
       working-directory: banner-rotation-service
+
+    - name: Upload binary
+      uses: actions/upload-artifact@v2
+      with:
+        name: banner-rotation-service
+        path: ./banner-rotation-service
