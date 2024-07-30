@@ -60,9 +60,7 @@ jobs:
       working-directory: banner-rotation-service
 
   build:
-    needs: setup
-    needs: tests
-    needs: lint
+    needs: [setup, tests, lint]
     runs-on: ubuntu-latest
 
     steps:

@@ -1,6 +1,6 @@
 # Cервис "Ротация баннеров"
 
-![example workflow](https://github.com/yuriiwanchev/banner-rotation-service/actions/workflows/project_ci.yaml/lint/badge.svg)
+![example workflow](https://github.com/yuriiwanchev/banner-rotation-service/actions/workflows/project_ci.yaml/badge.svg)
 
 ## Общее описание
 
