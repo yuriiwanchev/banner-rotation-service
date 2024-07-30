@@ -66,6 +66,21 @@ func TestRemoveBannerHandler(t *testing.T) {
 	assert.Equal(t, http.StatusOK, rr.Code)
 }
 
+func TestRemoveNonExistingBannerHandler(t *testing.T) {
+	requestBody, _ := json.Marshal(m.RemoveBannerRequest{SlotID: 100, BannerID: 100})
+
+	ctx := context.Background()
+	req, err := http.NewRequestWithContext(ctx, "POST", "/remove-banner", bytes.NewBuffer(requestBody))
+	if err != nil {
+		t.Fatal(err)
+	}
+	rr := httptest.NewRecorder()
+	handler := http.HandlerFunc(api.RemoveBannerHandler)
+	handler.ServeHTTP(rr, req)
+
+	assert.Equal(t, http.StatusBadRequest, rr.Code)
+}
+
 func sendRecordClickRequest(t *testing.T, slotID e.SlotID, bannerID e.BannerID, userGroupID e.UserGroupID) {
 	t.Helper()
 	recordClickRequest := m.RecordClickRequest{
@@ -135,12 +150,49 @@ func TestRecordClickHandler(t *testing.T) {
 }
 
 func TestSelectBannerHandler(t *testing.T) {
+	kafkaTopic := "banner_events"
+
+	container, err := gnomock.Start(
+		kafka.Preset(kafka.WithTopics(kafkaTopic)),
+		gnomock.WithDebugMode(), gnomock.WithLogWriter(os.Stdout),
+		gnomock.WithContainerName("kafka"),
+	)
+	require.NoError(t, err)
+
+	defer func() {
+		require.NoError(t, gnomock.Stop(container))
+	}()
+
+	kafkaBrokers := container.Address(kafka.BrokerPort)
+
+	api.InitKafkaProducer([]string{kafkaBrokers}, "banner_events")
+
+	reader := brokers.NewReader(brokers.ReaderConfig{
+		Brokers: []string{kafkaBrokers},
+		Topic:   kafkaTopic,
+		GroupID: "consumer-group-id",
+	})
+	defer reader.Close()
+
 	slotID := e.SlotID(1)
 	bannerID := e.BannerID(1)
 	sendAddBannerRequest(t, slotID, bannerID)
 
 	userGroupID := e.UserGroupID(1)
 	sendRecordClickRequest(t, slotID, bannerID, userGroupID)
+
+	msg, err := reader.ReadMessage(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+	var event e.Event
+	if err := json.Unmarshal(msg.Value, &event); err != nil {
+		t.Fatal(err)
+	}
+	assert.Equal(t, e.Click, event.Type)
+	assert.Equal(t, slotID, event.SlotID)
+	assert.Equal(t, bannerID, event.BannerID)
+	assert.Equal(t, userGroupID, event.UserGroupID)
 
 	requestBody, _ := json.Marshal(m.SelectBannerRequest{SlotID: slotID, UserGroupID: userGroupID})
 
@@ -157,4 +209,16 @@ func TestSelectBannerHandler(t *testing.T) {
 
 	expected := `{"bannerId":1}`
 	assert.JSONEq(t, expected, rr.Body.String())
+
+	msg, err = reader.ReadMessage(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := json.Unmarshal(msg.Value, &event); err != nil {
+		t.Fatal(err)
+	}
+	assert.Equal(t, e.View, event.Type)
+	assert.Equal(t, slotID, event.SlotID)
+	assert.Equal(t, bannerID, event.BannerID)
+	assert.Equal(t, userGroupID, event.UserGroupID)
 }
