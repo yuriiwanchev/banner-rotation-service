@@ -21,17 +21,17 @@ jobs:
     - name: Check out code
       uses: actions/checkout@v4
 
-    - name: Cache Go modules
-      uses: actions/cache@v3
-      with:
-        path: ~/go/pkg/mod
-        key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
-        restore-keys: |
-          ${{ runner.os }}-go-
+    # - name: Cache Go modules
+    #   uses: actions/cache@v3
+    #   with:
+    #     path: ~/go/pkg/mod
+    #     key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
+    #     restore-keys: |
+    #       ${{ runner.os }}-go-
 
-    - name: Save Go environment
-      id: save-go-env
-      run: echo "GO_ENV=$(go env GOPATH)" >> $GITHUB_ENV
+    # - name: Save Go environment
+    #   id: save-go-env
+    #   run: echo "GO_ENV=$(go env GOPATH)" >> $GITHUB_ENV
 
   lint:
     needs: setup
@@ -45,7 +45,7 @@ jobs:
       uses: golangci/golangci-lint-action@v3
       with:
         version: v1.59.1
-        # working-directory: banner-rotation-service
+        working-directory: banner-rotation-service
 
   tests:
     needs: setup
@@ -57,7 +57,7 @@ jobs:
 
     - name: Run unit tests
       run: go test -race -count 100 ./...
-      # working-directory: banner-rotation-service
+      working-directory: banner-rotation-service
 
   build:
     needs: [setup, tests, lint]
