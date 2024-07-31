@@ -34,3 +34,12 @@ const (
 	Click EventType = "Click"
 	View  EventType = "View"
 )
+
+type Statistics struct {
+	ID          int         `json:"id"`
+	SlotID      SlotID      `json:"slotId"`
+	BannerID    BannerID    `json:"bannerId"`
+	UserGroupID UserGroupID `json:"userGroupId"`
+	Clicks      int         `json:"clicks"`
+	Views       int         `json:"views"`
+}

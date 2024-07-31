@@ -46,6 +46,7 @@ require (
 
 require (
 	github.com/klauspost/compress v1.17.4 // indirect
+	github.com/lib/pq v1.10.9
 	github.com/orlangure/gnomock v0.31.0
 	github.com/pierrec/lz4/v4 v4.1.18 // indirect
 	github.com/stretchr/testify v1.9.0

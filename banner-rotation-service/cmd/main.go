@@ -8,9 +8,21 @@ import (
 	"time"
 
 	"github.com/yuriiwanchev/banner-rotation-service/internal/api"
+	"github.com/yuriiwanchev/banner-rotation-service/internal/repository"
 )
 
 func main() {
+	dataSourceName := os.Getenv("DATABASE_URL")
+	repository.InitDB(dataSourceName)
+	repository.InitSchema()
+
+	// repository.InitSlotBannerRepository()
+	// repository.InitUserGroupRepository()
+	// repository.InitEventRepository()
+	// repository.InitStatisticsRepository()
+
+	// repository.InitPostgresRepository()
+
 	kafkaBrokers := os.Getenv("KAFKA_BROKERS")
 	kafkaTopic := os.Getenv("KAFKA_TOPIC")
 

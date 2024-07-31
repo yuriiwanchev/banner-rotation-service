@@ -2,6 +2,7 @@ package api
 
 import (
 	"encoding/json"
+	"log"
 	"net/http"
 	"strconv"
 
@@ -9,6 +10,9 @@ import (
 	"github.com/yuriiwanchev/banner-rotation-service/internal/kafka"
 	"github.com/yuriiwanchev/banner-rotation-service/internal/logic/bandit"
 	m "github.com/yuriiwanchev/banner-rotation-service/internal/models"
+	"github.com/yuriiwanchev/banner-rotation-service/internal/repository"
+	"github.com/yuriiwanchev/banner-rotation-service/internal/repository/slot_banners_repository"
+	"github.com/yuriiwanchev/banner-rotation-service/internal/repository/statistic_repository"
 )
 
 var (
@@ -43,6 +47,14 @@ func AddBannerHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	banditService.AddBanner(request.SlotID, request.BannerID)
+
+	slotBannersRepository := slot_banners_repository.PgSlotBannerRepository{DB: repository.GetDB()}
+	if err := slotBannersRepository.AddBannerToSlot(request.SlotID, request.BannerID); err != nil {
+		log.Println(err)
+		jsonResponse(w, http.StatusInternalServerError, map[string]string{"error": "Failed to add banner to db"})
+		return
+	}
+
 	jsonResponse(w, http.StatusOK, nil)
 }
 
@@ -62,6 +74,13 @@ func RemoveBannerHandler(w http.ResponseWriter, r *http.Request) {
 	err := banditService.RemoveBanner(request.SlotID, request.BannerID)
 	if err != nil {
 		jsonResponse(w, http.StatusBadRequest, map[string]string{"error": err.Error()})
+		return
+	}
+
+	slotBannersRepository := slot_banners_repository.PgSlotBannerRepository{DB: repository.GetDB()}
+	if err := slotBannersRepository.RemoveBannerFromSlot(request.SlotID, request.BannerID); err != nil {
+		log.Println(err)
+		jsonResponse(w, http.StatusInternalServerError, map[string]string{"error": "Failed to add banner to db"})
 		return
 	}
 
@@ -100,6 +119,12 @@ func RecordClickHandler(w http.ResponseWriter, r *http.Request) {
 		kafkaProducer.PublishMessage(slotIDBytes, eventBytes)
 	}
 
+	statisticRepository := statistic_repository.PgStatisticRepository{DB: repository.GetDB()}
+	if err := statisticRepository.IncrementClick(request.SlotID, request.BannerID, request.UserGroupID); err != nil {
+		jsonResponse(w, http.StatusInternalServerError, map[string]string{"error": "Failed to record click"})
+		return
+	}
+
 	jsonResponse(w, http.StatusOK, nil)
 }
 
@@ -135,6 +160,12 @@ func SelectBannerHandler(w http.ResponseWriter, r *http.Request) {
 	slotIDBytes := idToBytes(int(request.SlotID))
 	if kafkaProducer != nil {
 		kafkaProducer.PublishMessage(slotIDBytes, eventBytes)
+	}
+
+	statisticRepository := statistic_repository.PgStatisticRepository{DB: repository.GetDB()}
+	if err := statisticRepository.IncrementView(request.SlotID, response.BannerID, request.UserGroupID); err != nil {
+		jsonResponse(w, http.StatusInternalServerError, map[string]string{"error": "Failed to record view"})
+		return
 	}
 
 	jsonResponse(w, http.StatusOK, response)
