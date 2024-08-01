@@ -12,6 +12,7 @@ import (
 	m "github.com/yuriiwanchev/banner-rotation-service/internal/models"
 	"github.com/yuriiwanchev/banner-rotation-service/internal/repository"
 	"github.com/yuriiwanchev/banner-rotation-service/internal/repository/slotbannersrepository"
+	"github.com/yuriiwanchev/banner-rotation-service/internal/repository/slotrepository"
 	"github.com/yuriiwanchev/banner-rotation-service/internal/repository/statisticrepository"
 	"github.com/yuriiwanchev/banner-rotation-service/internal/repository/usergrouprepository"
 )
@@ -35,7 +36,43 @@ func InitRepositories() {
 }
 
 func InitRotationAlgorithm() {
-	banditService = bandit.NewMultiArmedBandit()
+	slots := make(map[e.SlotID]*bandit.Slot)
+
+	slotRepo := slotrepository.PgSlotRepository{DB: repository.GetDB()}
+	slotBannersRepo := slotbannersrepository.PgSlotBannerRepository{DB: repository.GetDB()}
+	statisticRepo := statisticrepository.PgStatisticRepository{DB: repository.GetDB()}
+
+	dbSlots, err := slotRepo.GetAllSlots()
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	for _, slot := range dbSlots {
+		banners, err := slotBannersRepo.GetBannersForSlot(slot.ID)
+		if err != nil {
+			log.Fatal(err)
+		}
+
+		slots[slot.ID] = &bandit.Slot{
+			Banners:   make(map[e.BannerID]e.Banner),
+			GroupData: make(map[e.UserGroupID]map[e.BannerID]*bandit.GroupStats),
+		}
+
+		for _, banner := range banners {
+			slots[slot.ID].Banners[banner.ID] = *banner
+			stat, err := statisticRepo.GetStatisticsForSlotAndBanner(slot.ID, banner.ID)
+			if err != nil {
+				continue
+			}
+			slots[slot.ID].GroupData[stat.UserGroupID] = make(map[e.BannerID]*bandit.GroupStats)
+			slots[slot.ID].GroupData[stat.UserGroupID][banner.ID] = &bandit.GroupStats{
+				Views:  stat.Views,
+				Clicks: stat.Clicks,
+			}
+		}
+	}
+
+	banditService = bandit.NewMultiArmedBandit(slots)
 }
 
 func jsonResponse(w http.ResponseWriter, status int, data interface{}) {

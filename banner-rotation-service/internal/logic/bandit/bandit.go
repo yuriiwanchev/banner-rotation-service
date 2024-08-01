@@ -7,10 +7,6 @@ import (
 	"sync"
 
 	e "github.com/yuriiwanchev/banner-rotation-service/internal/entities"
-	"github.com/yuriiwanchev/banner-rotation-service/internal/repository"
-	"github.com/yuriiwanchev/banner-rotation-service/internal/repository/slotbannersrepository"
-	"github.com/yuriiwanchev/banner-rotation-service/internal/repository/slotrepository"
-	"github.com/yuriiwanchev/banner-rotation-service/internal/repository/statisticrepository"
 )
 
 type GroupStats struct {
@@ -28,43 +24,7 @@ type MultiArmedBandit struct {
 	mu    sync.Mutex
 }
 
-func NewMultiArmedBandit() *MultiArmedBandit {
-	slots := make(map[e.SlotID]*Slot)
-
-	slotRepo := slotrepository.PgSlotRepository{DB: repository.GetDB()}
-	slotBannersRepo := slotbannersrepository.PgSlotBannerRepository{DB: repository.GetDB()}
-	statisticRepo := statisticrepository.PgStatisticRepository{DB: repository.GetDB()}
-
-	dbSlots, err := slotRepo.GetAllSlots()
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	for _, slot := range dbSlots {
-		banners, err := slotBannersRepo.GetBannersForSlot(slot.ID)
-		if err != nil {
-			log.Fatal(err)
-		}
-
-		slots[slot.ID] = &Slot{
-			Banners:   make(map[e.BannerID]e.Banner),
-			GroupData: make(map[e.UserGroupID]map[e.BannerID]*GroupStats),
-		}
-
-		for _, banner := range banners {
-			slots[slot.ID].Banners[banner.ID] = *banner
-			stat, err := statisticRepo.GetStatisticsForSlotAndBanner(slot.ID, banner.ID)
-			if err != nil {
-				continue
-			}
-			slots[slot.ID].GroupData[stat.UserGroupID] = make(map[e.BannerID]*GroupStats)
-			slots[slot.ID].GroupData[stat.UserGroupID][banner.ID] = &GroupStats{
-				Views:  stat.Views,
-				Clicks: stat.Clicks,
-			}
-		}
-	}
-
+func NewMultiArmedBandit(slots map[e.SlotID]*Slot) *MultiArmedBandit {
 	return &MultiArmedBandit{
 		slots: slots,
 	}

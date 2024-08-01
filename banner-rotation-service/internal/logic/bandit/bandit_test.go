@@ -8,7 +8,7 @@ import (
 )
 
 func TestAddBanner(t *testing.T) {
-	mab := NewMultiArmedBandit()
+	mab := NewMultiArmedBandit(make(map[e.SlotID]*Slot))
 	slotID := e.SlotID(1)
 	bannerID := e.BannerID(1)
 
@@ -24,7 +24,7 @@ func TestAddBanner(t *testing.T) {
 }
 
 func TestRemoveBanner(t *testing.T) {
-	mab := NewMultiArmedBandit()
+	mab := NewMultiArmedBandit(make(map[e.SlotID]*Slot))
 	slotID := e.SlotID(1)
 	bannerID := e.BannerID(1)
 
@@ -40,7 +40,7 @@ func TestRemoveBanner(t *testing.T) {
 }
 
 func TestRecordClick(t *testing.T) {
-	mab := NewMultiArmedBandit()
+	mab := NewMultiArmedBandit(make(map[e.SlotID]*Slot))
 	slotID := e.SlotID(1)
 	bannerID := e.BannerID(1)
 	groupID := e.UserGroupID(1)
@@ -57,7 +57,7 @@ func TestRecordClick(t *testing.T) {
 }
 
 func TestSelectBanner(t *testing.T) {
-	mab := NewMultiArmedBandit()
+	mab := NewMultiArmedBandit(make(map[e.SlotID]*Slot))
 	slotID := e.SlotID(1)
 	bannerID1 := e.BannerID(1)
 	bannerID2 := e.BannerID(2)
@@ -83,7 +83,7 @@ func TestSelectBanner(t *testing.T) {
 }
 
 func TestSelectBanner_NoBanners(t *testing.T) {
-	mab := NewMultiArmedBandit()
+	mab := NewMultiArmedBandit(make(map[e.SlotID]*Slot))
 	slotID := e.SlotID(1)
 	groupID := e.UserGroupID(1)
 
@@ -96,7 +96,7 @@ func TestSelectBanner_NoBanners(t *testing.T) {
 // Edge Case Tests
 
 func TestAddBanner_NonExistentSlot(t *testing.T) {
-	mab := NewMultiArmedBandit()
+	mab := NewMultiArmedBandit(make(map[e.SlotID]*Slot))
 	slotID := e.SlotID(2)
 	bannerID := e.BannerID(3)
 
@@ -107,7 +107,7 @@ func TestAddBanner_NonExistentSlot(t *testing.T) {
 }
 
 func TestRemoveBanner_NonExistentSlot(t *testing.T) {
-	mab := NewMultiArmedBandit()
+	mab := NewMultiArmedBandit(make(map[e.SlotID]*Slot))
 	slotID := e.SlotID(2)
 	bannerID := e.BannerID(3)
 
@@ -118,7 +118,7 @@ func TestRemoveBanner_NonExistentSlot(t *testing.T) {
 }
 
 func TestRecordClick_NonExistentBannerOrSlot(t *testing.T) {
-	mab := NewMultiArmedBandit()
+	mab := NewMultiArmedBandit(make(map[e.SlotID]*Slot))
 	slotID := e.SlotID(3)
 	bannerID := e.BannerID(4)
 	groupID := e.UserGroupID(2)
@@ -132,7 +132,7 @@ func TestRecordClick_NonExistentBannerOrSlot(t *testing.T) {
 }
 
 func TestSelectBanner_EmptySlot(t *testing.T) {
-	mab := NewMultiArmedBandit()
+	mab := NewMultiArmedBandit(make(map[e.SlotID]*Slot))
 	slotID := e.SlotID(4)
 	groupID := e.UserGroupID(3)
 
@@ -143,7 +143,7 @@ func TestSelectBanner_EmptySlot(t *testing.T) {
 }
 
 func TestSelectBanner_NoViews(t *testing.T) {
-	mab := NewMultiArmedBandit()
+	mab := NewMultiArmedBandit(make(map[e.SlotID]*Slot))
 	slotID := e.SlotID(5)
 	bannerID1 := e.BannerID(1)
 	bannerID2 := e.BannerID(2)
@@ -159,7 +159,7 @@ func TestSelectBanner_NoViews(t *testing.T) {
 }
 
 func TestSelectBanner_UCBAlgorithm(t *testing.T) {
-	mab := NewMultiArmedBandit()
+	mab := NewMultiArmedBandit(make(map[e.SlotID]*Slot))
 	slotID := e.SlotID(6)
 	bannerID1 := e.BannerID(1)
 	bannerID2 := e.BannerID(2)
@@ -189,7 +189,7 @@ func TestSelectBanner_UCBAlgorithm(t *testing.T) {
 // Concurrency Tests
 
 func TestConcurrentAddBanner(t *testing.T) {
-	mab := NewMultiArmedBandit()
+	mab := NewMultiArmedBandit(make(map[e.SlotID]*Slot))
 	slotID := e.SlotID(1)
 
 	var wg sync.WaitGroup
@@ -209,7 +209,7 @@ func TestConcurrentAddBanner(t *testing.T) {
 }
 
 func TestConcurrentRemoveBanner(t *testing.T) {
-	mab := NewMultiArmedBandit()
+	mab := NewMultiArmedBandit(make(map[e.SlotID]*Slot))
 	slotID := e.SlotID(1)
 
 	for i := 0; i < 100; i++ {
@@ -237,7 +237,7 @@ func TestConcurrentRemoveBanner(t *testing.T) {
 }
 
 func TestConcurrentRecordClick(t *testing.T) {
-	mab := NewMultiArmedBandit()
+	mab := NewMultiArmedBandit(make(map[e.SlotID]*Slot))
 	slotID := e.SlotID(1)
 	bannerID := e.BannerID(1)
 	groupID := e.UserGroupID(1)
@@ -263,7 +263,7 @@ func TestConcurrentRecordClick(t *testing.T) {
 }
 
 func TestConcurrentSelectBanner(t *testing.T) {
-	mab := NewMultiArmedBandit()
+	mab := NewMultiArmedBandit(make(map[e.SlotID]*Slot))
 	slotID := e.SlotID(1)
 	bannerID1 := e.BannerID(1)
 	bannerID2 := e.BannerID(2)
@@ -294,7 +294,7 @@ func TestConcurrentSelectBanner(t *testing.T) {
 // Additional Tests for Specific Scenarios
 
 func TestExhaustiveSelection(t *testing.T) {
-	mab := NewMultiArmedBandit()
+	mab := NewMultiArmedBandit(make(map[e.SlotID]*Slot))
 	slotID := e.SlotID(7)
 	groupID := e.UserGroupID(1)
 
@@ -317,7 +317,7 @@ func TestExhaustiveSelection(t *testing.T) {
 }
 
 func TestPopularBannerSelection(t *testing.T) {
-	mab := NewMultiArmedBandit()
+	mab := NewMultiArmedBandit(make(map[e.SlotID]*Slot))
 	slotID := e.SlotID(8)
 	groupID := e.UserGroupID(1)
 
