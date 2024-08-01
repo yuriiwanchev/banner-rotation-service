@@ -1,4 +1,4 @@
-package usergroup_repository
+package usergrouprepository
 
 import (
 	"database/sql"
@@ -35,7 +35,7 @@ func (r *PgUserGroupRepository) CreateUserGroup(group *e.UserGroup) (e.UserGroup
 	return id, nil
 }
 
-func (r *PgUserGroupRepository) GetAllUserGroupsIds() ([]e.UserGroupID, error) {
+func (r *PgUserGroupRepository) GetAllUserGroupsIDs() ([]e.UserGroupID, error) {
 	sql := `SELECT id FROM user_groups`
 	rows, err := r.DB.Query(sql)
 	if err != nil {

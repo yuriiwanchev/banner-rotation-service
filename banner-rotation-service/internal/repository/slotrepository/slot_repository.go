@@ -1,4 +1,4 @@
-package slot_repository
+package slotrepository
 
 import (
 	"database/sql"
@@ -37,6 +37,9 @@ func (r *PgSlotRepository) CreateSlot(slot *e.Slot) (e.SlotID, error) {
 func (r *PgSlotRepository) GetAllSlots() ([]*e.Slot, error) {
 	sql := `SELECT id, description FROM slots`
 	rows, err := r.DB.Query(sql)
+	if rows.Err() != nil {
+		return nil, rows.Err()
+	}
 	if err != nil {
 		return nil, err
 	}

@@ -1,4 +1,4 @@
-package slot_banners_repository
+package slotbannersrepository
 
 import (
 	"database/sql"
@@ -35,6 +35,9 @@ func (r *PgSlotBannerRepository) GetBannersForSlot(slotID e.SlotID) ([]*e.Banner
 			INNER JOIN slot_banners sb ON b.id = sb.banner_id 
 			WHERE sb.slot_id = $1`
 	rows, err := r.DB.Query(sql, slotID)
+	if rows.Err() != nil {
+		return nil, rows.Err()
+	}
 	if err != nil {
 		return nil, err
 	}

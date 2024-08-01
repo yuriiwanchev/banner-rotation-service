@@ -8,9 +8,9 @@ import (
 
 	e "github.com/yuriiwanchev/banner-rotation-service/internal/entities"
 	"github.com/yuriiwanchev/banner-rotation-service/internal/repository"
-	"github.com/yuriiwanchev/banner-rotation-service/internal/repository/slot_banners_repository"
-	"github.com/yuriiwanchev/banner-rotation-service/internal/repository/slot_repository"
-	"github.com/yuriiwanchev/banner-rotation-service/internal/repository/statistic_repository"
+	"github.com/yuriiwanchev/banner-rotation-service/internal/repository/slotbannersrepository"
+	"github.com/yuriiwanchev/banner-rotation-service/internal/repository/slotrepository"
+	"github.com/yuriiwanchev/banner-rotation-service/internal/repository/statisticrepository"
 )
 
 type GroupStats struct {
@@ -31,9 +31,9 @@ type MultiArmedBandit struct {
 func NewMultiArmedBandit() *MultiArmedBandit {
 	slots := make(map[e.SlotID]*Slot)
 
-	slotRepo := slot_repository.PgSlotRepository{DB: repository.GetDB()}
-	slotBannersRepo := slot_banners_repository.PgSlotBannerRepository{DB: repository.GetDB()}
-	statisticRepo := statistic_repository.PgStatisticRepository{DB: repository.GetDB()}
+	slotRepo := slotrepository.PgSlotRepository{DB: repository.GetDB()}
+	slotBannersRepo := slotbannersrepository.PgSlotBannerRepository{DB: repository.GetDB()}
+	statisticRepo := statisticrepository.PgStatisticRepository{DB: repository.GetDB()}
 
 	dbSlots, err := slotRepo.GetAllSlots()
 	if err != nil {

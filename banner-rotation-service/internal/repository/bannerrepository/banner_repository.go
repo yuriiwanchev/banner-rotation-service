@@ -1,4 +1,4 @@
-package banner_repository
+package bannerrepository
 
 import (
 	"database/sql"

@@ -1,4 +1,4 @@
-package statistic_repository
+package statisticrepository
 
 import (
 	"database/sql"
@@ -21,8 +21,8 @@ type PgStatisticRepository struct {
 }
 
 func (r *PgStatisticRepository) CreateStartStatisticsForBannerInSlot(
-	slotID e.SlotID, bannerID e.BannerID, userGroupID []e.UserGroupID) error {
-
+	slotID e.SlotID, bannerID e.BannerID, userGroupID []e.UserGroupID,
+) error {
 	tx, err := r.DB.Begin()
 	if err != nil {
 		return fmt.Errorf("failed to begin transaction: %w", err)
@@ -48,7 +48,9 @@ func (r *PgStatisticRepository) CreateStartStatisticsForBannerInSlot(
 	return nil
 }
 
-func (r *PgStatisticRepository) GetStatistics(slotID e.SlotID, bannerID e.BannerID, userGroupID e.UserGroupID) (*e.Statistics, error) {
+func (r *PgStatisticRepository) GetStatistics(slotID e.SlotID, bannerID e.BannerID,
+	userGroupID e.UserGroupID,
+) (*e.Statistics, error) {
 	sql := `SELECT id, slot_id, banner_id, user_group_id, clicks, views 
 			FROM statistics 
 			WHERE slot_id = $1 
@@ -64,7 +66,9 @@ func (r *PgStatisticRepository) GetStatistics(slotID e.SlotID, bannerID e.Banner
 	return stat, nil
 }
 
-func (r *PgStatisticRepository) GetStatisticsForSlotAndBanner(slotID e.SlotID, bannerID e.BannerID) (*e.Statistics, error) {
+func (r *PgStatisticRepository) GetStatisticsForSlotAndBanner(slotID e.SlotID,
+	bannerID e.BannerID,
+) (*e.Statistics, error) {
 	sql := `SELECT id, slot_id, banner_id, user_group_id, clicks, views 
 			FROM statistics 
 			WHERE slot_id = $1 

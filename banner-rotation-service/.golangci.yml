@@ -20,6 +20,12 @@ linters-settings:
           - github.com/stretchr/testify/require
           - github.com/orlangure/gnomock
           - github.com/orlangure/gnomock/preset/kafka
+          - github.com/yuriiwanchev/banner-rotation-service/internal/repository
+          - github.com/yuriiwanchev/banner-rotation-service/internal/repository/slotbannersrepository
+          - github.com/yuriiwanchev/banner-rotation-service/internal/repository/slotrepository
+          - github.com/yuriiwanchev/banner-rotation-service/internal/repository/bannersrepository
+          - github.com/yuriiwanchev/banner-rotation-service/internal/repository/usergrouprepository
+          - github.com/yuriiwanchev/banner-rotation-service/internal/repository/statisticrepository
 
 linters:
   disable-all: true

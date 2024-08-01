@@ -11,17 +11,17 @@ import (
 	"github.com/yuriiwanchev/banner-rotation-service/internal/logic/bandit"
 	m "github.com/yuriiwanchev/banner-rotation-service/internal/models"
 	"github.com/yuriiwanchev/banner-rotation-service/internal/repository"
-	"github.com/yuriiwanchev/banner-rotation-service/internal/repository/slot_banners_repository"
-	"github.com/yuriiwanchev/banner-rotation-service/internal/repository/statistic_repository"
-	"github.com/yuriiwanchev/banner-rotation-service/internal/repository/usergroup_repository"
+	"github.com/yuriiwanchev/banner-rotation-service/internal/repository/slotbannersrepository"
+	"github.com/yuriiwanchev/banner-rotation-service/internal/repository/statisticrepository"
+	"github.com/yuriiwanchev/banner-rotation-service/internal/repository/usergrouprepository"
 )
 
 var (
 	banditService         *bandit.MultiArmedBandit
 	kafkaProducer         *kafka.Producer
-	slotBannersRepository slot_banners_repository.PgSlotBannerRepository
-	statisticRepository   statistic_repository.PgStatisticRepository
-	userGroupRepository   usergroup_repository.PgUserGroupRepository
+	slotBannersRepository slotbannersrepository.PgSlotBannerRepository
+	statisticRepository   statisticrepository.PgStatisticRepository
+	userGroupRepository   usergrouprepository.PgUserGroupRepository
 )
 
 func InitKafkaProducer(brokers []string, topic string) {
@@ -29,9 +29,9 @@ func InitKafkaProducer(brokers []string, topic string) {
 }
 
 func InitRepositories() {
-	slotBannersRepository = slot_banners_repository.PgSlotBannerRepository{DB: repository.GetDB()}
-	statisticRepository = statistic_repository.PgStatisticRepository{DB: repository.GetDB()}
-	userGroupRepository = usergroup_repository.PgUserGroupRepository{DB: repository.GetDB()}
+	slotBannersRepository = slotbannersrepository.PgSlotBannerRepository{DB: repository.GetDB()}
+	statisticRepository = statisticrepository.PgStatisticRepository{DB: repository.GetDB()}
+	userGroupRepository = usergrouprepository.PgUserGroupRepository{DB: repository.GetDB()}
 }
 
 func InitRotationAlgorithm() {
@@ -68,16 +68,18 @@ func AddBannerHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	userGroupIds, err := userGroupRepository.GetAllUserGroupsIds()
+	userGroupIDs, err := userGroupRepository.GetAllUserGroupsIDs()
 	if err != nil {
 		log.Println(err)
 		jsonResponse(w, http.StatusInternalServerError, map[string]string{"error": "Failed to get userGroupIds from db"})
 		return
 	}
 
-	if err := statisticRepository.CreateStartStatisticsForBannerInSlot(request.SlotID, request.BannerID, userGroupIds); err != nil {
+	if err := statisticRepository.CreateStartStatisticsForBannerInSlot(request.SlotID,
+		request.BannerID, userGroupIDs); err != nil {
 		log.Println(err)
-		jsonResponse(w, http.StatusInternalServerError, map[string]string{"error": "Failed to CreateStartStatisticsForBannerInSlot"})
+		jsonResponse(w, http.StatusInternalServerError,
+			map[string]string{"error": "Failed to CreateStartStatisticsForBannerInSlot"})
 		return
 	}
 

@@ -4,12 +4,12 @@ import (
 	"database/sql"
 	"fmt"
 	"log"
-
-	_ "github.com/lib/pq"
 )
 
-var db *sql.DB
-var signal chan struct{}
+var (
+	db     *sql.DB
+	signal chan struct{}
+)
 
 func InitDB(connStr string) {
 	signal = make(chan struct{})
