@@ -27,6 +27,8 @@ func main() {
 	kafkaTopic := os.Getenv("KAFKA_TOPIC")
 
 	api.InitKafkaProducer([]string{kafkaBrokers}, kafkaTopic)
+	api.InitRepositories()
+	api.InitRotationAlgorithm()
 
 	port := ":8080"
 

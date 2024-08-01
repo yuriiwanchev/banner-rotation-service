@@ -2,11 +2,14 @@ package statistic_repository
 
 import (
 	"database/sql"
+	"fmt"
+	"log"
 
 	e "github.com/yuriiwanchev/banner-rotation-service/internal/entities"
 )
 
 type StatisticRepository interface {
+	CreateStartStatisticsForBannerInSlot(slotID e.SlotID, bannerID e.BannerID, userGroupID []e.UserGroupID) error
 	GetStatistics(slotID e.SlotID, bannerID e.BannerID, userGroupID e.UserGroupID) (*e.Statistics, error)
 	GetStatisticsForSlotAndBanner(slotID e.SlotID, bannerID e.BannerID) (*e.Statistics, error)
 	UpdateStatistics(stat *e.Statistics) error
@@ -16,6 +19,35 @@ type StatisticRepository interface {
 
 type PgStatisticRepository struct {
 	DB *sql.DB
+}
+
+func (r *PgStatisticRepository) CreateStartStatisticsForBannerInSlot(
+	slotID e.SlotID, bannerID e.BannerID, userGroupID []e.UserGroupID) error {
+
+	tx, err := r.DB.Begin()
+	if err != nil {
+		return fmt.Errorf("failed to begin transaction: %w", err)
+	}
+
+	sql := `INSERT INTO statistics (slot_id, banner_id, user_group_id, clicks, views)
+			VALUES ($1, $2, $3, $4, $5)`
+
+	for _, groupID := range userGroupID {
+		log.Printf("Inserting data for user group %v", groupID)
+		_, err := tx.Exec(sql, slotID, bannerID, groupID, 0, 0)
+		if err != nil {
+			// В случае ошибки, откатываем транзакцию
+			tx.Rollback()
+			return fmt.Errorf("failed to insert data for user group %v: %w", groupID, err)
+		}
+	}
+
+	// Фиксируем транзакцию
+	if err := tx.Commit(); err != nil {
+		return fmt.Errorf("failed to commit transaction: %w", err)
+	}
+
+	return nil
 }
 
 func (r *PgStatisticRepository) GetStatistics(slotID e.SlotID, bannerID e.BannerID, userGroupID e.UserGroupID) (*e.Statistics, error) {

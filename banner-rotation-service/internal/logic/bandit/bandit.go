@@ -66,7 +66,7 @@ func NewMultiArmedBandit() *MultiArmedBandit {
 	}
 
 	return &MultiArmedBandit{
-		slots: make(map[e.SlotID]*Slot),
+		slots: slots,
 	}
 }
 
@@ -135,6 +135,7 @@ func (mab *MultiArmedBandit) SelectBanner(slotID e.SlotID, groupID e.UserGroupID
 
 	slot, exists := mab.slots[slotID]
 	if !exists {
+		log.Printf("SelectBanner: slot %d does not exist", slotID)
 		return 0
 	}
 

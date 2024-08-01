@@ -9,8 +9,10 @@ import (
 )
 
 var db *sql.DB
+var signal chan struct{}
 
 func InitDB(connStr string) {
+	signal = make(chan struct{})
 	var err error
 	db, err = sql.Open("postgres", connStr)
 	if err != nil {
@@ -22,9 +24,11 @@ func InitDB(connStr string) {
 	}
 
 	fmt.Println("Connected to the database successfully")
+	close(signal)
 }
 
 func GetDB() *sql.DB {
+	<-signal
 	return db
 }
 
@@ -45,7 +49,6 @@ func CheckTablesExist() (bool, error) {
     );
     `
 	var exists bool
-	log.Printf("check db: %v", db)
 	err := db.QueryRow(query).Scan(&exists)
 	if err != nil {
 		return false, err

@@ -13,15 +13,29 @@ import (
 	"github.com/yuriiwanchev/banner-rotation-service/internal/repository"
 	"github.com/yuriiwanchev/banner-rotation-service/internal/repository/slot_banners_repository"
 	"github.com/yuriiwanchev/banner-rotation-service/internal/repository/statistic_repository"
+	"github.com/yuriiwanchev/banner-rotation-service/internal/repository/usergroup_repository"
 )
 
 var (
-	banditService = bandit.NewMultiArmedBandit()
-	kafkaProducer *kafka.Producer
+	banditService         *bandit.MultiArmedBandit
+	kafkaProducer         *kafka.Producer
+	slotBannersRepository slot_banners_repository.PgSlotBannerRepository
+	statisticRepository   statistic_repository.PgStatisticRepository
+	userGroupRepository   usergroup_repository.PgUserGroupRepository
 )
 
 func InitKafkaProducer(brokers []string, topic string) {
 	kafkaProducer = kafka.NewKafkaProducer(brokers, topic)
+}
+
+func InitRepositories() {
+	slotBannersRepository = slot_banners_repository.PgSlotBannerRepository{DB: repository.GetDB()}
+	statisticRepository = statistic_repository.PgStatisticRepository{DB: repository.GetDB()}
+	userGroupRepository = usergroup_repository.PgUserGroupRepository{DB: repository.GetDB()}
+}
+
+func InitRotationAlgorithm() {
+	banditService = bandit.NewMultiArmedBandit()
 }
 
 func jsonResponse(w http.ResponseWriter, status int, data interface{}) {
@@ -48,10 +62,22 @@ func AddBannerHandler(w http.ResponseWriter, r *http.Request) {
 
 	banditService.AddBanner(request.SlotID, request.BannerID)
 
-	slotBannersRepository := slot_banners_repository.PgSlotBannerRepository{DB: repository.GetDB()}
 	if err := slotBannersRepository.AddBannerToSlot(request.SlotID, request.BannerID); err != nil {
 		log.Println(err)
-		jsonResponse(w, http.StatusInternalServerError, map[string]string{"error": "Failed to add banner to db"})
+		jsonResponse(w, http.StatusInternalServerError, map[string]string{"error": "Failed to add banner to slot to db"})
+		return
+	}
+
+	userGroupIds, err := userGroupRepository.GetAllUserGroupsIds()
+	if err != nil {
+		log.Println(err)
+		jsonResponse(w, http.StatusInternalServerError, map[string]string{"error": "Failed to get userGroupIds from db"})
+		return
+	}
+
+	if err := statisticRepository.CreateStartStatisticsForBannerInSlot(request.SlotID, request.BannerID, userGroupIds); err != nil {
+		log.Println(err)
+		jsonResponse(w, http.StatusInternalServerError, map[string]string{"error": "Failed to CreateStartStatisticsForBannerInSlot"})
 		return
 	}
 
@@ -77,7 +103,6 @@ func RemoveBannerHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	slotBannersRepository := slot_banners_repository.PgSlotBannerRepository{DB: repository.GetDB()}
 	if err := slotBannersRepository.RemoveBannerFromSlot(request.SlotID, request.BannerID); err != nil {
 		log.Println(err)
 		jsonResponse(w, http.StatusInternalServerError, map[string]string{"error": "Failed to add banner to db"})
@@ -119,7 +144,6 @@ func RecordClickHandler(w http.ResponseWriter, r *http.Request) {
 		kafkaProducer.PublishMessage(slotIDBytes, eventBytes)
 	}
 
-	statisticRepository := statistic_repository.PgStatisticRepository{DB: repository.GetDB()}
 	if err := statisticRepository.IncrementClick(request.SlotID, request.BannerID, request.UserGroupID); err != nil {
 		jsonResponse(w, http.StatusInternalServerError, map[string]string{"error": "Failed to record click"})
 		return
@@ -162,7 +186,6 @@ func SelectBannerHandler(w http.ResponseWriter, r *http.Request) {
 		kafkaProducer.PublishMessage(slotIDBytes, eventBytes)
 	}
 
-	statisticRepository := statistic_repository.PgStatisticRepository{DB: repository.GetDB()}
 	if err := statisticRepository.IncrementView(request.SlotID, response.BannerID, request.UserGroupID); err != nil {
 		jsonResponse(w, http.StatusInternalServerError, map[string]string{"error": "Failed to record view"})
 		return
