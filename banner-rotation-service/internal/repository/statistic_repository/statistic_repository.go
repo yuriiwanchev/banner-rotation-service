@@ -3,7 +3,6 @@ package statistic_repository
 import (
 	"database/sql"
 	"fmt"
-	"log"
 
 	e "github.com/yuriiwanchev/banner-rotation-service/internal/entities"
 )
@@ -33,7 +32,6 @@ func (r *PgStatisticRepository) CreateStartStatisticsForBannerInSlot(
 			VALUES ($1, $2, $3, $4, $5)`
 
 	for _, groupID := range userGroupID {
-		log.Printf("Inserting data for user group %v", groupID)
 		_, err := tx.Exec(sql, slotID, bannerID, groupID, 0, 0)
 		if err != nil {
 			// В случае ошибки, откатываем транзакцию

@@ -16,13 +16,6 @@ func main() {
 	repository.InitDB(dataSourceName)
 	repository.InitSchema()
 
-	// repository.InitSlotBannerRepository()
-	// repository.InitUserGroupRepository()
-	// repository.InitEventRepository()
-	// repository.InitStatisticsRepository()
-
-	// repository.InitPostgresRepository()
-
 	kafkaBrokers := os.Getenv("KAFKA_BROKERS")
 	kafkaTopic := os.Getenv("KAFKA_TOPIC")
 

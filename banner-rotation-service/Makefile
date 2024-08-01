@@ -11,5 +11,7 @@ run:
 test:
 	go test -race -count 100 ./...
 
-integration-test:
-	go test -count 1 -tags=integration ./test/integration/...
+integration-tests:
+	docker compose -f docker-compose.integrational.yml up -d
+	go test -count 1 -tags=integration ./tests/integration/... --timeout 1m
+	go test -count 1 -tags=integration ./tests/integration/... --timeout 1m
