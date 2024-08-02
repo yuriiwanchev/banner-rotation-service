@@ -2,33 +2,43 @@ package repository
 
 import (
 	"database/sql"
-	"fmt"
 	"log"
+	"time"
+
+	_ "github.com/lib/pq"
 )
 
 var (
-	db     *sql.DB
-	signal chan struct{}
+	db *sql.DB
 )
 
 func InitDB(connStr string) {
-	signal = make(chan struct{})
+	log.Println("Connecting to the database...")
 	var err error
-	db, err = sql.Open("postgres", connStr)
+	for i := 0; i < 10; i++ {
+		db, err = sql.Open("postgres", connStr)
+		if err != nil {
+			log.Println(err)
+			log.Println("Failed to connect to database, retrying in 5 seconds...")
+			time.Sleep(2 * time.Second)
+			continue
+		}
+		if err = db.Ping(); err == nil {
+			break
+		}
+
+		log.Println("Database not ready, retrying in 2 seconds...")
+		time.Sleep(1 * time.Second)
+	}
+
 	if err != nil {
-		log.Fatal(err)
+		log.Fatalf("Failed to connect to database: %v", err)
 	}
 
-	if err = db.Ping(); err != nil {
-		log.Fatal(err)
-	}
-
-	fmt.Println("Connected to the database successfully")
-	close(signal)
+	log.Println("Connected to the database successfully")
 }
 
 func GetDB() *sql.DB {
-	<-signal
 	return db
 }
 
