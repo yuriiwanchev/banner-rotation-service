@@ -26,6 +26,7 @@ linters-settings:
           - github.com/yuriiwanchev/banner-rotation-service/internal/repository/bannersrepository
           - github.com/yuriiwanchev/banner-rotation-service/internal/repository/usergrouprepository
           - github.com/yuriiwanchev/banner-rotation-service/internal/repository/statisticrepository
+          - github.com/lib/pq
 
 linters:
   disable-all: true

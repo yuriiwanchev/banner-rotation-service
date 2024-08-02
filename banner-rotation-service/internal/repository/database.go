@@ -5,12 +5,11 @@ import (
 	"log"
 	"time"
 
+	// Register some standard stuff.
 	_ "github.com/lib/pq"
 )
 
-var (
-	db *sql.DB
-)
+var db *sql.DB
 
 func InitDB(connStr string) {
 	log.Println("Connecting to the database...")
