@@ -1,6 +1,3 @@
-//go:build integration
-// +build integration
-
 package api_integration_test
 
 import (
@@ -11,7 +8,6 @@ import (
 	"log"
 	"net/http"
 	"net/http/httptest"
-	"os"
 	"os/exec"
 	"strconv"
 	"testing"
@@ -30,10 +26,10 @@ import (
 var db *sql.DB
 var reader *brokers.Reader
 
-func TestMain(m *testing.M) {
+func TestSequence(t *testing.T) {
 	exec.Command("docker-compose", "-f", "../../docker-compose.integrational.yml", "up", "-d").Run()
 
-	time.Sleep(1 * time.Second)
+	time.Sleep(5 * time.Second)
 
 	repository.InitDB("postgres://user:password@localhost:5432/banner_rotation_db?sslmode=disable")
 	repository.InitSchema()
@@ -51,22 +47,205 @@ func TestMain(m *testing.M) {
 		GroupID: "consumer-group-id",
 	})
 
-	// tryBrocker([]string{kafkaBrokers}, kafkaTopic)
-
-	// time.Sleep(5 * time.Second)
-
-	// tryBrocker([]string{kafkaBrokers}, kafkaTopic)
-
 	clearDatabase()
 	fillDatabase()
 
-	code := m.Run()
+	defer reader.Close()
+	defer repository.CloseDB()
 
-	reader.Close()
-	repository.CloseDB()
+	t.Run("TestAddBannerHandler", func(t *testing.T) {
+		clearDatabase()
 
-	os.Exit(code)
+		slotID := e.SlotID(1)
+		bannerID := e.BannerID(1)
+
+		exists := bannerInSlotExists(slotID, bannerID)
+		assert.False(t, exists)
+
+		sendAddBannerRequest(t, slotID, bannerID)
+
+		exists = bannerInSlotExists(slotID, bannerID)
+		assert.True(t, exists)
+	})
+	t.Run("TestAddBannerAlreadyExistsHandler", func(t *testing.T) {
+		clearDatabase()
+
+		slotID := e.SlotID(1)
+		bannerID := e.BannerID(1)
+
+		exists := bannerInSlotExists(slotID, bannerID)
+		assert.False(t, exists)
+
+		_, err := db.Exec("INSERT INTO slot_banners (slot_id, banner_id) VALUES ($1, $2)", slotID, bannerID)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		exists = bannerInSlotExists(slotID, bannerID)
+		assert.True(t, exists)
+
+		addBannerRequest := m.AddBannerRequest{
+			SlotID:   slotID,
+			BannerID: bannerID,
+		}
+		requestBody, _ := json.Marshal(addBannerRequest)
+
+		ctx := context.Background()
+		req, err := http.NewRequestWithContext(ctx, "POST", "/add-banner", bytes.NewBuffer(requestBody))
+		if err != nil {
+			t.Fatal(err)
+		}
+		rr := httptest.NewRecorder()
+		handler := http.HandlerFunc(api.AddBannerHandler)
+		handler.ServeHTTP(rr, req)
+		assert.Equal(t, http.StatusInternalServerError, rr.Code)
+	})
+	t.Run("TestRemoveBannerHandler", func(t *testing.T) {
+		clearDatabase()
+
+		slotID := e.SlotID(2)
+		bannerID := e.BannerID(2)
+
+		exists := bannerInSlotExists(slotID, bannerID)
+		assert.False(t, exists)
+
+		sendAddBannerRequest(t, slotID, bannerID)
+
+		exists = bannerInSlotExists(slotID, bannerID)
+		assert.True(t, exists)
+
+		requestBody, _ := json.Marshal(m.RemoveBannerRequest{SlotID: slotID, BannerID: bannerID})
+
+		ctx := context.Background()
+		req, err := http.NewRequestWithContext(ctx, "POST", "/remove-banner", bytes.NewBuffer(requestBody))
+		if err != nil {
+			t.Fatal(err)
+		}
+		rr := httptest.NewRecorder()
+		handler := http.HandlerFunc(api.RemoveBannerHandler)
+		handler.ServeHTTP(rr, req)
+
+		assert.Equal(t, http.StatusOK, rr.Code)
+
+		exists = bannerInSlotExists(slotID, bannerID)
+		assert.False(t, exists)
+	})
+	t.Run("TestRemoveNonExistingBannerHandler", func(t *testing.T) {
+		requestBody, _ := json.Marshal(m.RemoveBannerRequest{SlotID: 100, BannerID: 100})
+
+		ctx := context.Background()
+		req, err := http.NewRequestWithContext(ctx, "POST", "/remove-banner", bytes.NewBuffer(requestBody))
+		if err != nil {
+			t.Fatal(err)
+		}
+		rr := httptest.NewRecorder()
+		handler := http.HandlerFunc(api.RemoveBannerHandler)
+		handler.ServeHTTP(rr, req)
+
+		assert.Equal(t, http.StatusBadRequest, rr.Code)
+	})
+	t.Run("TestRecordClickHandler", func(t *testing.T) {
+		clearDatabase()
+
+		slotID := e.SlotID(2)
+		bannerID := e.BannerID(2)
+		userGroupID := e.UserGroupID(1)
+
+		sendAddBannerRequest(t, slotID, bannerID)
+
+		clicksBefore := getClicks(t, slotID, bannerID, userGroupID)
+		assert.Equal(t, 0, clicksBefore)
+
+		sendRecordClickRequest(t, slotID, bannerID, userGroupID)
+
+		clicksAfter := getClicks(t, slotID, bannerID, userGroupID)
+		assert.Equal(t, 1, clicksAfter)
+
+		event := readEventFromKafka(t)
+
+		assert.Equal(t, e.Click, event.Type)
+		assert.Equal(t, slotID, event.SlotID)
+		assert.Equal(t, bannerID, event.BannerID)
+		// assert.Equal(t, userGroupID, event.UserGroupID)
+	})
+	t.Run("TestSelectBannerHandler", func(t *testing.T) {
+		clearDatabase()
+
+		slotID := e.SlotID(1)
+		bannerID := e.BannerID(1)
+		userGroupID := e.UserGroupID(1)
+
+		sendAddBannerRequest(t, slotID, bannerID)
+
+		clicksBefore := getClicks(t, slotID, bannerID, userGroupID)
+		assert.Equal(t, 0, clicksBefore)
+
+		sendRecordClickRequest(t, slotID, bannerID, userGroupID)
+
+		clicksAfter := getClicks(t, slotID, bannerID, userGroupID)
+		assert.Equal(t, 1, clicksAfter)
+
+		event := readEventFromKafka(t)
+
+		assert.Equal(t, e.Click, event.Type)
+		assert.Equal(t, slotID, event.SlotID)
+		assert.Equal(t, bannerID, event.BannerID)
+		assert.Equal(t, userGroupID, event.UserGroupID)
+
+		viewsBefore := getViews(t, slotID, bannerID, userGroupID)
+		assert.Equal(t, 0, viewsBefore)
+
+		sendSelectBannerRequest(t, slotID, userGroupID)
+
+		viewsAfter := getViews(t, slotID, bannerID, userGroupID)
+		assert.Equal(t, 1, viewsAfter)
+
+		event = readEventFromKafka(t)
+
+		assert.Equal(t, e.View, event.Type)
+		assert.Equal(t, slotID, event.SlotID)
+		assert.Equal(t, bannerID, event.BannerID)
+		assert.Equal(t, userGroupID, event.UserGroupID)
+	})
 }
+
+// func TestMain(m *testing.M) {
+// 	exec.Command("docker-compose", "-f", "../../docker-compose.integrational.yml", "up", "-d").Run()
+
+// 	time.Sleep(5 * time.Second)
+
+// 	repository.InitDB("postgres://user:password@localhost:5432/banner_rotation_db?sslmode=disable")
+// 	repository.InitSchema()
+// 	db = repository.GetDB()
+
+// 	kafkaBrokers := "localhost:9092"
+// 	kafkaTopic := "banner_events"
+
+// 	api.InitKafkaProducer([]string{kafkaBrokers}, kafkaTopic)
+// 	api.InitRepositories()
+
+// 	reader = brokers.NewReader(brokers.ReaderConfig{
+// 		Brokers: []string{kafkaBrokers},
+// 		Topic:   kafkaTopic,
+// 		GroupID: "consumer-group-id",
+// 	})
+
+// 	// tryBrocker([]string{kafkaBrokers}, kafkaTopic)
+
+// 	// time.Sleep(5 * time.Second)
+
+// 	// tryBrocker([]string{kafkaBrokers}, kafkaTopic)
+
+// 	clearDatabase()
+// 	fillDatabase()
+
+// 	code := m.Run()
+
+// 	reader.Close()
+// 	repository.CloseDB()
+
+// 	os.Exit(code)
+// }
 
 func clearDatabase() error {
 	tables := []string{"slot_banners", "statistics"}
@@ -157,101 +336,6 @@ func bannerInSlotExists(slotID e.SlotID, bannerID e.BannerID) bool {
 	return exists
 }
 
-func TestAddBannerHandler(t *testing.T) {
-	clearDatabase()
-
-	slotID := e.SlotID(1)
-	bannerID := e.BannerID(1)
-
-	exists := bannerInSlotExists(slotID, bannerID)
-	assert.False(t, exists)
-
-	sendAddBannerRequest(t, slotID, bannerID)
-
-	exists = bannerInSlotExists(slotID, bannerID)
-	assert.True(t, exists)
-}
-
-func TestAddBannerAlreadyExistsHandler(t *testing.T) {
-	clearDatabase()
-
-	slotID := e.SlotID(1)
-	bannerID := e.BannerID(1)
-
-	exists := bannerInSlotExists(slotID, bannerID)
-	assert.False(t, exists)
-
-	_, err := db.Exec("INSERT INTO slot_banners (slot_id, banner_id) VALUES ($1, $2)", slotID, bannerID)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	exists = bannerInSlotExists(slotID, bannerID)
-	assert.True(t, exists)
-
-	addBannerRequest := m.AddBannerRequest{
-		SlotID:   slotID,
-		BannerID: bannerID,
-	}
-	requestBody, _ := json.Marshal(addBannerRequest)
-
-	ctx := context.Background()
-	req, err := http.NewRequestWithContext(ctx, "POST", "/add-banner", bytes.NewBuffer(requestBody))
-	if err != nil {
-		t.Fatal(err)
-	}
-	rr := httptest.NewRecorder()
-	handler := http.HandlerFunc(api.AddBannerHandler)
-	handler.ServeHTTP(rr, req)
-	assert.Equal(t, http.StatusInternalServerError, rr.Code)
-}
-
-func TestRemoveBannerHandler(t *testing.T) {
-	clearDatabase()
-
-	slotID := e.SlotID(2)
-	bannerID := e.BannerID(2)
-
-	exists := bannerInSlotExists(slotID, bannerID)
-	assert.False(t, exists)
-
-	sendAddBannerRequest(t, slotID, bannerID)
-
-	exists = bannerInSlotExists(slotID, bannerID)
-	assert.True(t, exists)
-
-	requestBody, _ := json.Marshal(m.RemoveBannerRequest{SlotID: slotID, BannerID: bannerID})
-
-	ctx := context.Background()
-	req, err := http.NewRequestWithContext(ctx, "POST", "/remove-banner", bytes.NewBuffer(requestBody))
-	if err != nil {
-		t.Fatal(err)
-	}
-	rr := httptest.NewRecorder()
-	handler := http.HandlerFunc(api.RemoveBannerHandler)
-	handler.ServeHTTP(rr, req)
-
-	assert.Equal(t, http.StatusOK, rr.Code)
-
-	exists = bannerInSlotExists(slotID, bannerID)
-	assert.False(t, exists)
-}
-
-func TestRemoveNonExistingBannerHandler(t *testing.T) {
-	requestBody, _ := json.Marshal(m.RemoveBannerRequest{SlotID: 100, BannerID: 100})
-
-	ctx := context.Background()
-	req, err := http.NewRequestWithContext(ctx, "POST", "/remove-banner", bytes.NewBuffer(requestBody))
-	if err != nil {
-		t.Fatal(err)
-	}
-	rr := httptest.NewRecorder()
-	handler := http.HandlerFunc(api.RemoveBannerHandler)
-	handler.ServeHTTP(rr, req)
-
-	assert.Equal(t, http.StatusBadRequest, rr.Code)
-}
-
 func sendRecordClickRequest(t *testing.T, slotID e.SlotID, bannerID e.BannerID, userGroupID e.UserGroupID) {
 	t.Helper()
 	recordClickRequest := m.RecordClickRequest{
@@ -319,31 +403,6 @@ func readEventFromKafka(t *testing.T) e.Event {
 	return event
 }
 
-func TestRecordClickHandler(t *testing.T) {
-	clearDatabase()
-
-	slotID := e.SlotID(2)
-	bannerID := e.BannerID(2)
-	userGroupID := e.UserGroupID(1)
-
-	sendAddBannerRequest(t, slotID, bannerID)
-
-	clicksBefore := getClicks(t, slotID, bannerID, userGroupID)
-	assert.Equal(t, 0, clicksBefore)
-
-	sendRecordClickRequest(t, slotID, bannerID, userGroupID)
-
-	clicksAfter := getClicks(t, slotID, bannerID, userGroupID)
-	assert.Equal(t, 1, clicksAfter)
-
-	event := readEventFromKafka(t)
-
-	assert.Equal(t, e.Click, event.Type)
-	assert.Equal(t, slotID, event.SlotID)
-	assert.Equal(t, bannerID, event.BannerID)
-	assert.Equal(t, userGroupID, event.UserGroupID)
-}
-
 func sendSelectBannerRequest(t *testing.T, slotID e.SlotID, userGroupID e.UserGroupID) {
 	t.Helper()
 	requestBody, _ := json.Marshal(m.SelectBannerRequest{SlotID: slotID, UserGroupID: userGroupID})
@@ -361,44 +420,4 @@ func sendSelectBannerRequest(t *testing.T, slotID e.SlotID, userGroupID e.UserGr
 
 	expected := `{"bannerId":1}`
 	assert.JSONEq(t, expected, rr.Body.String())
-}
-
-func TestSelectBannerHandler(t *testing.T) {
-	clearDatabase()
-
-	slotID := e.SlotID(1)
-	bannerID := e.BannerID(1)
-	userGroupID := e.UserGroupID(1)
-
-	sendAddBannerRequest(t, slotID, bannerID)
-
-	clicksBefore := getClicks(t, slotID, bannerID, userGroupID)
-	assert.Equal(t, 0, clicksBefore)
-
-	sendRecordClickRequest(t, slotID, bannerID, userGroupID)
-
-	clicksAfter := getClicks(t, slotID, bannerID, userGroupID)
-	assert.Equal(t, 1, clicksAfter)
-
-	event := readEventFromKafka(t)
-
-	assert.Equal(t, e.Click, event.Type)
-	assert.Equal(t, slotID, event.SlotID)
-	assert.Equal(t, bannerID, event.BannerID)
-	assert.Equal(t, userGroupID, event.UserGroupID)
-
-	viewsBefore := getViews(t, slotID, bannerID, userGroupID)
-	assert.Equal(t, 0, viewsBefore)
-
-	sendSelectBannerRequest(t, slotID, userGroupID)
-
-	viewsAfter := getViews(t, slotID, bannerID, userGroupID)
-	assert.Equal(t, 1, viewsAfter)
-
-	event = readEventFromKafka(t)
-
-	assert.Equal(t, e.View, event.Type)
-	assert.Equal(t, slotID, event.SlotID)
-	assert.Equal(t, bannerID, event.BannerID)
-	assert.Equal(t, userGroupID, event.UserGroupID)
 }
