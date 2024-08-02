@@ -1,11 +1,13 @@
-package api_integration_test
+//go:build integration
+// +build integration
+
+package apiintegrationtest
 
 import (
 	"bytes"
 	"context"
 	"database/sql"
 	"encoding/json"
-	"log"
 	"net/http"
 	"net/http/httptest"
 	"os/exec"
@@ -26,6 +28,9 @@ import (
 var db *sql.DB
 var reader *brokers.Reader
 
+var kafkaBrokers = "localhost:9092"
+var kafkaTopic = "banner_events"
+
 func TestSequence(t *testing.T) {
 	exec.Command("docker-compose", "-f", "../../docker-compose.integrational.yml", "up", "-d").Run()
 
@@ -34,9 +39,6 @@ func TestSequence(t *testing.T) {
 	repository.InitDB("postgres://user:password@localhost:5432/banner_rotation_db?sslmode=disable")
 	repository.InitSchema()
 	db = repository.GetDB()
-
-	kafkaBrokers := "localhost:9092"
-	kafkaTopic := "banner_events"
 
 	api.InitKafkaProducer([]string{kafkaBrokers}, kafkaTopic)
 	api.InitRepositories()
@@ -52,6 +54,8 @@ func TestSequence(t *testing.T) {
 
 	defer reader.Close()
 	defer repository.CloseDB()
+
+	tryBrocker()
 
 	t.Run("TestAddBannerHandler", func(t *testing.T) {
 		clearDatabase()
@@ -166,7 +170,7 @@ func TestSequence(t *testing.T) {
 		assert.Equal(t, e.Click, event.Type)
 		assert.Equal(t, slotID, event.SlotID)
 		assert.Equal(t, bannerID, event.BannerID)
-		// assert.Equal(t, userGroupID, event.UserGroupID)
+		assert.Equal(t, userGroupID, event.UserGroupID)
 	})
 	t.Run("TestSelectBannerHandler", func(t *testing.T) {
 		clearDatabase()
@@ -208,44 +212,6 @@ func TestSequence(t *testing.T) {
 		assert.Equal(t, userGroupID, event.UserGroupID)
 	})
 }
-
-// func TestMain(m *testing.M) {
-// 	exec.Command("docker-compose", "-f", "../../docker-compose.integrational.yml", "up", "-d").Run()
-
-// 	time.Sleep(5 * time.Second)
-
-// 	repository.InitDB("postgres://user:password@localhost:5432/banner_rotation_db?sslmode=disable")
-// 	repository.InitSchema()
-// 	db = repository.GetDB()
-
-// 	kafkaBrokers := "localhost:9092"
-// 	kafkaTopic := "banner_events"
-
-// 	api.InitKafkaProducer([]string{kafkaBrokers}, kafkaTopic)
-// 	api.InitRepositories()
-
-// 	reader = brokers.NewReader(brokers.ReaderConfig{
-// 		Brokers: []string{kafkaBrokers},
-// 		Topic:   kafkaTopic,
-// 		GroupID: "consumer-group-id",
-// 	})
-
-// 	// tryBrocker([]string{kafkaBrokers}, kafkaTopic)
-
-// 	// time.Sleep(5 * time.Second)
-
-// 	// tryBrocker([]string{kafkaBrokers}, kafkaTopic)
-
-// 	clearDatabase()
-// 	fillDatabase()
-
-// 	code := m.Run()
-
-// 	reader.Close()
-// 	repository.CloseDB()
-
-// 	os.Exit(code)
-// }
 
 func clearDatabase() error {
 	tables := []string{"slot_banners", "statistics"}
@@ -298,7 +264,7 @@ func sendAddBannerRequest(t *testing.T, slotID e.SlotID, bannerID e.BannerID) {
 	assert.Equal(t, http.StatusOK, rr.Code)
 }
 
-func tryBrocker(brokers []string, topic string) {
+func tryBrocker() {
 	event := e.Event{
 		Type:        e.Click,
 		SlotID:      e.SlotID(1),
@@ -310,11 +276,12 @@ func tryBrocker(brokers []string, topic string) {
 	slotIDString := strconv.Itoa(1)
 	slotIDBytes := []byte(slotIDString)
 
-	kafkaProducer := kafka.NewKafkaProducer(brokers, topic)
+	kafkaProducer := kafka.NewKafkaProducer([]string{kafkaBrokers}, kafkaTopic)
 	err := kafkaProducer.PublishMessage(slotIDBytes, eventBytes)
 
 	if err != nil {
-		log.Printf("Failed to publish message in tryBrocker: %v\n", err)
+		time.Sleep(10 * time.Second)
+		return
 	}
 
 	reader.ReadMessage(context.Background())
@@ -391,6 +358,7 @@ func getViews(t *testing.T, slotID e.SlotID, bannerID e.BannerID, userGroupID e.
 
 func readEventFromKafka(t *testing.T) e.Event {
 	t.Helper()
+
 	msg, err := reader.ReadMessage(context.Background())
 	if err != nil {
 		t.Fatal(err)
